@@ -59,7 +59,9 @@ export const routesSection: RouteObject[] = [
     path: 'sign-in',
     element: (
       <AuthLayout>
-        <SignInPage />
+        <Suspense fallback={renderFallback()}>
+          <SignInPage />
+        </Suspense>
       </AuthLayout>
     ),
   },
