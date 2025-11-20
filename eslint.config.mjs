@@ -54,6 +54,8 @@ const importRules = () => ({
   'import/export': 0,
   'import/default': 0,
   'import/namespace': 0,
+  'import/no-unresolved': 0,
+  'import/no-duplicates': 0,
   'import/no-named-as-default': 0,
   'import/newline-after-import': 2,
   'import/no-named-as-default-member': 0,
@@ -159,12 +161,9 @@ export const customConfig = {
     import: importPlugin,
   },
   settings: {
-    // https://www.npmjs.com/package/eslint-import-resolver-typescript
-    ...importPlugin.configs.typescript.settings,
     'import/resolver': {
-      ...importPlugin.configs.typescript.settings['import/resolver'],
-      typescript: {
-        project: './tsconfig.json',
+      node: {
+        extensions: ['.js', '.jsx', '.ts', '.tsx'],
       },
     },
   },
