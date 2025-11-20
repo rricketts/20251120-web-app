@@ -20,7 +20,6 @@ export type UserProps = {
   name: string;
   role: string;
   status: string;
-  avatarUrl: string;
   isVerified: boolean;
 };
 
@@ -68,7 +67,7 @@ export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: U
               alignItems: 'center',
             }}
           >
-            <Avatar alt={row.name} src={row.avatarUrl} />
+            <Avatar alt={row.name}>{row.name.charAt(0).toUpperCase()}</Avatar>
             {row.name}
           </Box>
         </TableCell>

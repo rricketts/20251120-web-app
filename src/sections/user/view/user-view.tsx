@@ -40,7 +40,6 @@ function convertUserToUserProps(user: User): UserProps {
     role: user.role,
     isVerified: user.is_verified,
     status: user.status,
-    avatarUrl: user.avatar_url || '/assets/images/avatar/avatar-1.webp',
   };
 }
 

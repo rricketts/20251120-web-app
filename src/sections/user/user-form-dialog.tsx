@@ -45,7 +45,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
     isVerified: false,
     status: 'active',
-    avatarUrl: '',
   });
 
   const [loading, setLoading] = useState(false);
@@ -59,7 +58,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         role: editUser.role,
         isVerified: editUser.isVerified,
         status: editUser.status,
-        avatarUrl: editUser.avatarUrl,
       });
     } else {
       setFormData({
@@ -68,7 +66,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
         isVerified: false,
         status: 'active',
-        avatarUrl: '',
       });
     }
   }, [editUser, open, availableRoles]);
@@ -101,7 +98,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
             role: formData.role,
             is_verified: formData.isVerified,
             status: formData.status,
-            avatar_url: formData.avatarUrl || null,
           })
           .eq('id', editUser.id);
 
@@ -114,7 +110,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
             role: formData.role,
             is_verified: formData.isVerified,
             status: formData.status,
-            avatar_url: formData.avatarUrl || null,
           },
         ]);
 
@@ -124,20 +119,9 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
       setFormData({
         name: '',
         email: '',
-        company: '',
         role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
         isVerified: false,
         status: 'active',
-        avatarUrl: '',
-      });
-
-      setFormData({
-        name: '',
-        email: '',
-        role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
-        isVerified: false,
-        status: 'active',
-        avatarUrl: '',
       });
 
       onSuccess();
@@ -199,16 +183,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
                 </MenuItem>
               ))}
             </TextField>
-
-            <TextField
-              fullWidth
-              label="Avatar URL"
-              placeholder="/assets/images/avatar/avatar-1.webp"
-              value={formData.avatarUrl}
-              onChange={handleChange('avatarUrl')}
-              disabled={loading}
-              helperText="Optional: Path to avatar image"
-            />
 
             <FormControlLabel
               control={

@@ -16,7 +16,6 @@ export type User = {
   role: string;
   is_verified: boolean;
   status: string;
-  avatar_url: string | null;
   created_at: string;
   updated_at: string;
 };
