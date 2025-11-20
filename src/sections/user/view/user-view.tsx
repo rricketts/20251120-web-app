@@ -47,6 +47,7 @@ export function UserView() {
   const [users, setUsers] = useState<UserProps[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
+  const [editUser, setEditUser] = useState<UserProps | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -71,11 +72,40 @@ export function UserView() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handleOpenDialog = () => setOpenDialog(true);
-  const handleCloseDialog = () => setOpenDialog(false);
+  const handleOpenDialog = () => {
+    setEditUser(null);
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setEditUser(null);
+  };
 
   const handleSuccess = () => {
     fetchUsers();
+  };
+
+  const handleEdit = (user: UserProps) => {
+    setEditUser(user);
+    setOpenDialog(true);
+  };
+
+  const handleDelete = async (userId: string) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('users').delete().eq('id', userId);
+
+      if (error) throw error;
+
+      fetchUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Failed to delete user');
+    }
   };
 
   const dataFiltered: UserProps[] = applyFilter({
@@ -154,6 +184,8 @@ export function UserView() {
                       row={row}
                       selected={table.selected.includes(row.id)}
                       onSelectRow={() => table.onSelectRow(row.id)}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
                     />
                   ))}
 
@@ -183,6 +215,7 @@ export function UserView() {
         open={openDialog}
         onClose={handleCloseDialog}
         onSuccess={handleSuccess}
+        editUser={editUser}
       />
     </DashboardContent>
   );

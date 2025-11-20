@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -13,10 +13,13 @@ import MenuItem from '@mui/material/MenuItem';
 
 import { supabase } from 'src/lib/supabase';
 
+import type { UserProps } from './user-table-row';
+
 type UserFormDialogProps = {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editUser?: UserProps | null;
 };
 
 const ROLES = [
@@ -32,7 +35,7 @@ const ROLES = [
   'Full Stack Developer',
 ];
 
-export function UserFormDialog({ open, onClose, onSuccess }: UserFormDialogProps) {
+export function UserFormDialog({ open, onClose, onSuccess, editUser }: UserFormDialogProps) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -45,6 +48,30 @@ export function UserFormDialog({ open, onClose, onSuccess }: UserFormDialogProps
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (editUser) {
+      setFormData({
+        name: editUser.name,
+        email: '',
+        company: editUser.company,
+        role: editUser.role,
+        isVerified: editUser.isVerified,
+        status: editUser.status,
+        avatarUrl: editUser.avatarUrl,
+      });
+    } else {
+      setFormData({
+        name: '',
+        email: '',
+        company: '',
+        role: 'UI Designer',
+        isVerified: false,
+        status: 'active',
+        avatarUrl: '',
+      });
+    }
+  }, [editUser, open]);
 
   const handleChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
@@ -66,19 +93,35 @@ export function UserFormDialog({ open, onClose, onSuccess }: UserFormDialogProps
     setError('');
 
     try {
-      const { error: insertError } = await supabase.from('users').insert([
-        {
-          name: formData.name,
-          email: formData.email,
-          company: formData.company,
-          role: formData.role,
-          is_verified: formData.isVerified,
-          status: formData.status,
-          avatar_url: formData.avatarUrl || null,
-        },
-      ]);
+      if (editUser) {
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            name: formData.name,
+            company: formData.company,
+            role: formData.role,
+            is_verified: formData.isVerified,
+            status: formData.status,
+            avatar_url: formData.avatarUrl || null,
+          })
+          .eq('id', editUser.id);
 
-      if (insertError) throw insertError;
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase.from('users').insert([
+          {
+            name: formData.name,
+            email: formData.email,
+            company: formData.company,
+            role: formData.role,
+            is_verified: formData.isVerified,
+            status: formData.status,
+            avatar_url: formData.avatarUrl || null,
+          },
+        ]);
+
+        if (insertError) throw insertError;
+      }
 
       setFormData({
         name: '',
@@ -93,8 +136,8 @@ export function UserFormDialog({ open, onClose, onSuccess }: UserFormDialogProps
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error creating user:', err);
-      setError(err.message || 'Failed to create user');
+      console.error(`Error ${editUser ? 'updating' : 'creating'} user:`, err);
+      setError(err.message || `Failed to ${editUser ? 'update' : 'create'} user`);
     } finally {
       setLoading(false);
     }
@@ -109,7 +152,7 @@ export function UserFormDialog({ open, onClose, onSuccess }: UserFormDialogProps
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Add New User</DialogTitle>
+      <DialogTitle>{editUser ? 'Edit User' : 'Add New User'}</DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
@@ -122,15 +165,17 @@ export function UserFormDialog({ open, onClose, onSuccess }: UserFormDialogProps
               disabled={loading}
             />
 
-            <TextField
-              required
-              fullWidth
-              type="email"
-              label="Email"
-              value={formData.email}
-              onChange={handleChange('email')}
-              disabled={loading}
-            />
+            {!editUser && (
+              <TextField
+                required
+                fullWidth
+                type="email"
+                label="Email"
+                value={formData.email}
+                onChange={handleChange('email')}
+                disabled={loading}
+              />
+            )}
 
             <TextField
               required
@@ -190,7 +235,10 @@ export function UserFormDialog({ open, onClose, onSuccess }: UserFormDialogProps
             Cancel
           </Button>
           <Button type="submit" variant="contained" disabled={loading}>
-            {loading ? 'Creating...' : 'Create User'}
+            {loading
+              ? (editUser ? 'Updating...' : 'Creating...')
+              : (editUser ? 'Update User' : 'Create User')
+            }
           </Button>
         </DialogActions>
       </form>
