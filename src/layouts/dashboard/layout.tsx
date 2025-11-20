@@ -1,5 +1,6 @@
 import type { Breakpoint } from '@mui/material/styles';
 
+import { useEffect } from 'react';
 import { merge } from 'es-toolkit';
 import { useBoolean } from 'minimal-shared/hooks';
 
@@ -8,6 +9,8 @@ import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 
 import { _langs, _notifications } from 'src/_mock';
+import { useRouter } from 'src/routes/hooks';
+import { useAuth } from 'src/contexts/auth-context';
 
 import { NavMobile, NavDesktop } from './nav';
 import { layoutClasses } from '../core/classes';
@@ -48,8 +51,16 @@ export function DashboardLayout({
   layoutQuery = 'lg',
 }: DashboardLayoutProps) {
   const theme = useTheme();
+  const router = useRouter();
+  const { user, loading } = useAuth();
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/sign-in');
+    }
+  }, [user, loading, router]);
 
   const renderHeader = () => {
     const headerSlotProps: HeaderSectionProps['slotProps'] = {

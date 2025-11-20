@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -17,11 +17,17 @@ import { Iconify } from 'src/components/iconify';
 
 export function SignInView() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.push('/');
+    }
+  }, [user, authLoading, router]);
 
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('hello@gmail.com');
-  const [password, setPassword] = useState('@demo1234');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
