@@ -15,9 +15,9 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 
-type TeamFormDialogProps = {
+type ProjectFormDialogProps = {
   open: boolean;
-  team?: {
+  project?: {
     id: string;
     name: string;
     plan: string;
@@ -27,29 +27,29 @@ type TeamFormDialogProps = {
   onSave: (values: { name: string; plan: string }) => Promise<void>;
 };
 
-export function TeamFormDialog({ open, team, onClose, onSave }: TeamFormDialogProps) {
+export function ProjectFormDialog({ open, project, onClose, onSave }: ProjectFormDialogProps) {
   const [name, setName] = useState('');
   const [plan, setPlan] = useState('Free');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (team) {
-      setName(team.name);
-      setPlan(team.plan);
+    if (project) {
+      setName(project.name);
+      setPlan(project.plan);
     } else {
       setName('');
       setPlan('Free');
     }
     setError('');
-  }, [team, open]);
+  }, [project, open]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
 
     if (!name.trim()) {
-      setError('Team name is required');
+      setError('Domain name is required');
       return;
     }
 
@@ -57,8 +57,8 @@ export function TeamFormDialog({ open, team, onClose, onSave }: TeamFormDialogPr
       setSaving(true);
       await onSave({ name: name.trim(), plan });
     } catch (err) {
-      setError('Failed to save team. Please try again.');
-      console.error('Error saving team:', err);
+      setError('Failed to save project. Please try again.');
+      console.error('Error saving project:', err);
     } finally {
       setSaving(false);
     }
@@ -71,19 +71,20 @@ export function TeamFormDialog({ open, team, onClose, onSave }: TeamFormDialogPr
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <form onSubmit={handleSubmit}>
-        <DialogTitle>{team ? 'Edit team' : 'Create new team'}</DialogTitle>
+        <DialogTitle>{project ? 'Edit project' : 'Create new project'}</DialogTitle>
 
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 1 }}>
             <TextField
               autoFocus
               fullWidth
-              label="Team name"
+              label="Domain name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               error={!!error && !name.trim()}
               helperText={error && !name.trim() ? error : ''}
               disabled={saving}
+              placeholder="example.com"
             />
 
             <FormControl fullWidth disabled={saving}>
@@ -108,7 +109,7 @@ export function TeamFormDialog({ open, team, onClose, onSave }: TeamFormDialogPr
             Cancel
           </Button>
           <Button type="submit" variant="contained" disabled={saving}>
-            {saving ? 'Saving...' : team ? 'Save changes' : 'Create team'}
+            {saving ? 'Saving...' : project ? 'Save changes' : 'Create project'}
           </Button>
         </DialogActions>
       </form>

@@ -22,9 +22,9 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
 
-import { TeamFormDialog } from '../team-form-dialog';
+import { ProjectFormDialog } from '../project-form-dialog';
 
-type Team = {
+type Project = {
   id: string;
   name: string;
   plan: string;
@@ -34,14 +34,14 @@ type Team = {
   member_count?: number;
 };
 
-export function TeamsView() {
+export function ProjectsView() {
   const navigate = useNavigate();
   const router = useRouter();
-  const [currentTab, setCurrentTab] = useState('teams');
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [currentTab, setCurrentTab] = useState('projects');
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
-  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
     if (newValue === 'users') {
@@ -51,81 +51,81 @@ export function TeamsView() {
     }
   };
 
-  const fetchTeams = useCallback(async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
 
-      const { data: teamsData, error: teamsError } = await supabase
-        .from('teams')
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (teamsError) {
-        console.error('Error fetching teams:', teamsError);
-        setTeams([]);
+      if (projectsError) {
+        console.error('Error fetching projects:', projectsError);
+        setProjects([]);
         return;
       }
 
-      const teamsWithCounts = await Promise.all(
-        (teamsData || []).map(async (team) => {
+      const projectsWithCounts = await Promise.all(
+        (projectsData || []).map(async (project) => {
           const { count } = await supabase
-            .from('team_members')
+            .from('project_members')
             .select('*', { count: 'exact', head: true })
-            .eq('team_id', team.id);
+            .eq('project_id', project.id);
 
-          return { ...team, member_count: count || 0 };
+          return { ...project, member_count: count || 0 };
         })
       );
 
-      setTeams(teamsWithCounts);
+      setProjects(projectsWithCounts);
     } catch (error) {
-      console.error('Error fetching teams:', error);
-      setTeams([]);
+      console.error('Error fetching projects:', error);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchTeams();
-  }, [fetchTeams]);
+    fetchProjects();
+  }, [fetchProjects]);
 
   const handleOpenDialog = useCallback(() => {
-    setEditingTeam(null);
+    setEditingProject(null);
     setOpenDialog(true);
   }, []);
 
   const handleCloseDialog = useCallback(() => {
     setOpenDialog(false);
-    setEditingTeam(null);
+    setEditingProject(null);
   }, []);
 
-  const handleEditTeam = useCallback((team: Team) => {
-    setEditingTeam(team);
+  const handleEditProject = useCallback((project: Project) => {
+    setEditingProject(project);
     setOpenDialog(true);
   }, []);
 
-  const handleDeleteTeam = useCallback(
-    async (teamId: string) => {
-      if (!window.confirm('Are you sure you want to delete this team? This action cannot be undone.')) {
+  const handleDeleteProject = useCallback(
+    async (projectId: string) => {
+      if (!window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
         return;
       }
 
       try {
-        const { error } = await supabase.from('teams').delete().eq('id', teamId);
+        const { error } = await supabase.from('projects').delete().eq('id', projectId);
 
         if (error) throw error;
 
-        await fetchTeams();
+        await fetchProjects();
       } catch (error) {
-        console.error('Error deleting team:', error);
-        alert('Failed to delete team. Please try again.');
+        console.error('Error deleting project:', error);
+        alert('Failed to delete project. Please try again.');
       }
     },
-    [fetchTeams]
+    [fetchProjects]
   );
 
-  const handleSaveTeam = useCallback(
+  const handleSaveProject = useCallback(
     async (values: { name: string; plan: string }) => {
       try {
         const {
@@ -134,19 +134,19 @@ export function TeamsView() {
 
         if (!user) throw new Error('User not authenticated');
 
-        if (editingTeam) {
+        if (editingProject) {
           const { error: updateError } = await supabase
-            .from('teams')
+            .from('projects')
             .update({
               name: values.name,
               plan: values.plan,
             })
-            .eq('id', editingTeam.id);
+            .eq('id', editingProject.id);
 
           if (updateError) throw updateError;
         } else {
-          const { data: newTeam, error: insertError } = await supabase
-            .from('teams')
+          const { data: newProject, error: insertError } = await supabase
+            .from('projects')
             .insert({
               name: values.name,
               plan: values.plan,
@@ -158,9 +158,9 @@ export function TeamsView() {
 
           if (insertError) throw insertError;
 
-          if (newTeam) {
-            const { error: memberError } = await supabase.from('team_members').insert({
-              team_id: newTeam.id,
+          if (newProject) {
+            const { error: memberError } = await supabase.from('project_members').insert({
+              project_id: newProject.id,
               user_id: user.id,
               role: 'owner',
             });
@@ -169,14 +169,14 @@ export function TeamsView() {
           }
         }
 
-        await fetchTeams();
+        await fetchProjects();
         handleCloseDialog();
       } catch (error) {
-        console.error('Error saving team:', error);
+        console.error('Error saving project:', error);
         throw error;
       }
     },
-    [editingTeam, fetchTeams, handleCloseDialog]
+    [editingProject, fetchProjects, handleCloseDialog]
   );
 
   const getDefaultLogo = (name: string) => {
@@ -188,38 +188,38 @@ export function TeamsView() {
   return (
     <DashboardContent>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
-        <Typography variant="h4">Users & Teams</Typography>
+        <Typography variant="h4">Users & Projects</Typography>
         <Button
           variant="contained"
           color="inherit"
           startIcon={<Iconify icon="mingcute:add-line" />}
           onClick={handleOpenDialog}
         >
-          New team
+          New project
         </Button>
       </Stack>
 
       <Tabs value={currentTab} onChange={handleTabChange} sx={{ mb: 3 }}>
         <Tab label="Users" value="users" />
-        <Tab label="Teams" value="teams" />
+        <Tab label="Projects" value="projects" />
       </Tabs>
 
       {loading ? (
         <Card sx={{ p: 3 }}>
-          <Typography>Loading teams...</Typography>
+          <Typography>Loading projects...</Typography>
         </Card>
-      ) : teams.length === 0 ? (
+      ) : projects.length === 0 ? (
         <Card sx={{ p: 5, textAlign: 'center' }}>
           <Iconify
-            icon="solar:users-group-two-rounded-bold-duotone"
+            icon="solar:folder-with-files-bold-duotone"
             width={80}
             sx={{ mb: 2, color: 'text.disabled', mx: 'auto' }}
           />
           <Typography variant="h6" sx={{ mb: 1 }}>
-            No teams yet
+            No projects yet
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-            Create your first team to get started
+            Create your first project to get started
           </Typography>
           <Button
             variant="contained"
@@ -227,13 +227,13 @@ export function TeamsView() {
             startIcon={<Iconify icon="mingcute:add-line" />}
             onClick={handleOpenDialog}
           >
-            Create team
+            Create project
           </Button>
         </Card>
       ) : (
         <Stack spacing={2}>
-          {teams.map((team) => (
-            <Card key={team.id}>
+          {projects.map((project) => (
+            <Card key={project.id}>
               <Stack
                 direction="row"
                 alignItems="center"
@@ -241,27 +241,27 @@ export function TeamsView() {
                 sx={{ p: 3 }}
               >
                 <Avatar
-                  src={team.logo_url || undefined}
+                  src={project.logo_url || undefined}
                   sx={{
                     width: 56,
                     height: 56,
-                    bgcolor: team.logo_url ? 'transparent' : getDefaultLogo(team.name),
+                    bgcolor: project.logo_url ? 'transparent' : getDefaultLogo(project.name),
                   }}
                 >
-                  {!team.logo_url && team.name.charAt(0).toUpperCase()}
+                  {!project.logo_url && project.name.charAt(0).toUpperCase()}
                 </Avatar>
 
                 <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                   <Typography variant="h6" noWrap>
-                    {team.name}
+                    {project.name}
                   </Typography>
                   <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 0.5 }}>
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      {team.plan} plan
+                      {project.plan} plan
                     </Typography>
                     <Divider orientation="vertical" flexItem />
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      {team.member_count} {team.member_count === 1 ? 'member' : 'members'}
+                      {project.member_count} {project.member_count === 1 ? 'member' : 'members'}
                     </Typography>
                   </Stack>
                 </Box>
@@ -269,14 +269,14 @@ export function TeamsView() {
                 <Stack direction="row" spacing={1}>
                   <IconButton
                     size="small"
-                    onClick={() => handleEditTeam(team)}
+                    onClick={() => handleEditProject(project)}
                     sx={{ color: 'text.secondary' }}
                   >
                     <Iconify icon="solar:pen-bold" width={20} />
                   </IconButton>
                   <IconButton
                     size="small"
-                    onClick={() => handleDeleteTeam(team.id)}
+                    onClick={() => handleDeleteProject(project.id)}
                     sx={{ color: 'error.main' }}
                   >
                     <Iconify icon="solar:trash-bin-trash-bold" width={20} />
@@ -288,11 +288,11 @@ export function TeamsView() {
         </Stack>
       )}
 
-      <TeamFormDialog
+      <ProjectFormDialog
         open={openDialog}
-        team={editingTeam}
+        project={editingProject}
         onClose={handleCloseDialog}
-        onSave={handleSaveTeam}
+        onSave={handleSaveProject}
       />
     </DashboardContent>
   );

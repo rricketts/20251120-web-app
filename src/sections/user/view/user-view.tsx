@@ -60,8 +60,8 @@ export function UserView() {
   const canManageUsers = userRole === 'admin' || userRole === 'manager';
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
-    if (newValue === 'teams') {
-      navigate('/user/teams');
+    if (newValue === 'projects') {
+      navigate('/user/projects');
     } else {
       setCurrentTab(newValue);
     }
@@ -152,7 +152,7 @@ export function UserView() {
   return (
     <DashboardContent>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
-        <Typography variant="h4">Users & Teams</Typography>
+        <Typography variant="h4">Users & Projects</Typography>
         <Button
           variant="contained"
           color="inherit"
@@ -165,7 +165,7 @@ export function UserView() {
 
       <Tabs value={currentTab} onChange={handleTabChange} sx={{ mb: 3 }}>
         <Tab label="Users" value="users" />
-        <Tab label="Teams" value="teams" />
+        <Tab label="Projects" value="projects" />
       </Tabs>
 
       <Card>
