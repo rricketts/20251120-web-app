@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Pagination from '@mui/material/Pagination';
 import Typography from '@mui/material/Typography';
 
-import { _products } from 'src/_mock';
+import { supabase } from 'src/lib/supabase';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { ProductItem } from '../product-item';
@@ -13,6 +13,7 @@ import { ProductSort } from '../product-sort';
 import { CartIcon } from '../product-cart-widget';
 import { ProductFilters } from '../product-filters';
 
+import type { Product } from 'src/lib/supabase';
 import type { FiltersProps } from '../product-filters';
 
 // ----------------------------------------------------------------------
@@ -57,12 +58,59 @@ const defaultFilters = {
   category: CATEGORY_OPTIONS[0].value,
 };
 
+type ProductItemType = {
+  id: string;
+  name: string;
+  price: number;
+  priceSale: number | null;
+  coverUrl: string | null;
+  colors: string[];
+  status: string;
+};
+
+function convertProductToProductItem(product: Product): ProductItemType {
+  return {
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    priceSale: product.price_sale,
+    coverUrl: product.cover_url,
+    colors: product.colors,
+    status: product.status,
+  };
+}
+
 export function ProductsView() {
   const [sortBy, setSortBy] = useState('featured');
 
   const [openFilter, setOpenFilter] = useState(false);
 
   const [filters, setFilters] = useState<FiltersProps>(defaultFilters);
+
+  const [products, setProducts] = useState<ProductItemType[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const convertedProducts = (data || []).map(convertProductToProductItem);
+        setProducts(convertedProducts);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProducts();
+  }, []);
 
   const handleOpenFilter = useCallback(() => {
     setOpenFilter(true);
@@ -139,14 +187,14 @@ export function ProductsView() {
       </Box>
 
       <Grid container spacing={3}>
-        {_products.map((product) => (
+        {products.map((product) => (
           <Grid key={product.id} size={{ xs: 12, sm: 6, md: 3 }}>
             <ProductItem product={product} />
           </Grid>
         ))}
       </Grid>
 
-      <Pagination count={10} color="primary" sx={{ mt: 8, mx: 'auto' }} />
+      <Pagination count={Math.ceil(products.length / 12)} color="primary" sx={{ mt: 8, mx: 'auto' }} />
     </DashboardContent>
   );
 }

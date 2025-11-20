@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
@@ -6,6 +6,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Pagination from '@mui/material/Pagination';
 
+import { supabase } from 'src/lib/supabase';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
@@ -14,16 +15,55 @@ import { PostItem } from '../post-item';
 import { PostSort } from '../post-sort';
 import { PostSearch } from '../post-search';
 
+import type { Post } from 'src/lib/supabase';
 import type { IPostItem } from '../post-item';
 
 // ----------------------------------------------------------------------
 
-type Props = {
-  posts: IPostItem[];
-};
+function convertPostToPostItem(post: Post): IPostItem {
+  return {
+    id: post.id,
+    title: post.title,
+    description: post.description,
+    coverUrl: post.cover_url || '/assets/images/cover/cover-1.webp',
+    totalViews: post.total_views,
+    totalComments: post.total_comments,
+    totalShares: post.total_shares,
+    totalFavorites: post.total_favorites,
+    postedAt: post.posted_at,
+    author: {
+      name: post.author_name,
+      avatarUrl: post.author_avatar_url || '/assets/images/avatar/avatar-1.webp',
+    },
+  };
+}
 
-export function BlogView({ posts }: Props) {
+export function BlogView() {
   const [sortBy, setSortBy] = useState('latest');
+  const [posts, setPosts] = useState<IPostItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchPosts() {
+      try {
+        const { data, error } = await supabase
+          .from('posts')
+          .select('*')
+          .order('posted_at', { ascending: false });
+
+        if (error) throw error;
+
+        const convertedPosts = (data || []).map(convertPostToPostItem);
+        setPosts(convertedPosts);
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPosts();
+  }, []);
 
   const handleSort = useCallback((newSort: string) => {
     setSortBy(newSort);
@@ -90,7 +130,7 @@ export function BlogView({ posts }: Props) {
         })}
       </Grid>
 
-      <Pagination count={10} color="primary" sx={{ mt: 8, mx: 'auto' }} />
+      <Pagination count={Math.ceil(posts.length / 12)} color="primary" sx={{ mt: 8, mx: 'auto' }} />
     </DashboardContent>
   );
 }

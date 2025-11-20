@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -9,7 +9,7 @@ import Typography from '@mui/material/Typography';
 import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
 
-import { _users } from 'src/_mock';
+import { supabase } from 'src/lib/supabase';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
@@ -23,16 +23,53 @@ import { UserTableToolbar } from '../user-table-toolbar';
 import { emptyRows, applyFilter, getComparator } from '../utils';
 
 import type { UserProps } from '../user-table-row';
+import type { User } from 'src/lib/supabase';
 
 // ----------------------------------------------------------------------
+
+function convertUserToUserProps(user: User): UserProps {
+  return {
+    id: user.id,
+    name: user.name,
+    company: user.company,
+    role: user.role,
+    isVerified: user.is_verified,
+    status: user.status,
+    avatarUrl: user.avatar_url || '/assets/images/avatar/avatar-1.webp',
+  };
+}
 
 export function UserView() {
   const table = useTable();
 
   const [filterName, setFilterName] = useState('');
+  const [users, setUsers] = useState<UserProps[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const convertedUsers = (data || []).map(convertUserToUserProps);
+        setUsers(convertedUsers);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchUsers();
+  }, []);
 
   const dataFiltered: UserProps[] = applyFilter({
-    inputData: _users,
+    inputData: users,
     comparator: getComparator(table.order, table.orderBy),
     filterName,
   });
@@ -76,13 +113,13 @@ export function UserView() {
               <UserTableHead
                 order={table.order}
                 orderBy={table.orderBy}
-                rowCount={_users.length}
+                rowCount={users.length}
                 numSelected={table.selected.length}
                 onSort={table.onSort}
                 onSelectAllRows={(checked) =>
                   table.onSelectAllRows(
                     checked,
-                    _users.map((user) => user.id)
+                    users.map((user) => user.id)
                   )
                 }
                 headLabel={[
@@ -111,7 +148,7 @@ export function UserView() {
 
                 <TableEmptyRows
                   height={68}
-                  emptyRows={emptyRows(table.page, table.rowsPerPage, _users.length)}
+                  emptyRows={emptyRows(table.page, table.rowsPerPage, users.length)}
                 />
 
                 {notFound && <TableNoData searchQuery={filterName} />}
@@ -123,7 +160,7 @@ export function UserView() {
         <TablePagination
           component="div"
           page={table.page}
-          count={_users.length}
+          count={users.length}
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}
           rowsPerPageOptions={[5, 10, 25]}
