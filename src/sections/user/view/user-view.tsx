@@ -20,6 +20,7 @@ import { UserTableRow } from '../user-table-row';
 import { UserTableHead } from '../user-table-head';
 import { TableEmptyRows } from '../table-empty-rows';
 import { UserTableToolbar } from '../user-table-toolbar';
+import { UserFormDialog } from '../user-form-dialog';
 import { emptyRows, applyFilter, getComparator } from '../utils';
 
 import type { UserProps } from '../user-table-row';
@@ -45,28 +46,37 @@ export function UserView() {
   const [filterName, setFilterName] = useState('');
   const [users, setUsers] = useState<UserProps[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const convertedUsers = (data || []).map(convertUserToUserProps);
+      setUsers(convertedUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function fetchUsers() {
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        const convertedUsers = (data || []).map(convertUserToUserProps);
-        setUsers(convertedUsers);
-      } catch (error) {
-        console.error('Error fetching users:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
+
+  const handleOpenDialog = () => setOpenDialog(true);
+  const handleCloseDialog = () => setOpenDialog(false);
+
+  const handleSuccess = () => {
+    fetchUsers();
+  };
 
   const dataFiltered: UserProps[] = applyFilter({
     inputData: users,
@@ -92,6 +102,7 @@ export function UserView() {
           variant="contained"
           color="inherit"
           startIcon={<Iconify icon="mingcute:add-line" />}
+          onClick={handleOpenDialog}
         >
           New user
         </Button>
@@ -167,6 +178,12 @@ export function UserView() {
           onRowsPerPageChange={table.onChangeRowsPerPage}
         />
       </Card>
+
+      <UserFormDialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        onSuccess={handleSuccess}
+      />
     </DashboardContent>
   );
 }
