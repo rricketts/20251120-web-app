@@ -12,6 +12,7 @@ import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
 
 import { supabase } from 'src/lib/supabase';
+import { useAuth } from 'src/contexts/auth-context';
 
 import type { UserProps } from './user-table-row';
 
@@ -20,27 +21,29 @@ type UserFormDialogProps = {
   onClose: () => void;
   onSuccess: () => void;
   editUser?: UserProps | null;
+  currentUserRole?: string;
 };
 
-const ROLES = [
-  'Leader',
-  'Hr Manager',
-  'UI Designer',
-  'UX Designer',
-  'UI/UX Designer',
-  'Project Manager',
-  'Backend Developer',
-  'Full Stack Designer',
-  'Front End Developer',
-  'Full Stack Developer',
-];
+const ALL_ROLES = ['admin', 'manager', 'user'];
 
-export function UserFormDialog({ open, onClose, onSuccess, editUser }: UserFormDialogProps) {
+const getRolesForUser = (userRole: string) => {
+  if (userRole === 'admin') {
+    return ALL_ROLES;
+  }
+  if (userRole === 'manager') {
+    return ['manager', 'user'];
+  }
+  return [];
+};
+
+export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUserRole = 'user' }: UserFormDialogProps) {
+  const availableRoles = getRolesForUser(currentUserRole);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     company: '',
-    role: 'UI Designer',
+    role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
     isVerified: false,
     status: 'active',
     avatarUrl: '',
@@ -65,13 +68,13 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser }: UserFormD
         name: '',
         email: '',
         company: '',
-        role: 'UI Designer',
+        role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
         isVerified: false,
         status: 'active',
         avatarUrl: '',
       });
     }
-  }, [editUser, open]);
+  }, [editUser, open, availableRoles]);
 
   const handleChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
@@ -127,7 +130,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser }: UserFormD
         name: '',
         email: '',
         company: '',
-        role: 'UI Designer',
+        role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
         isVerified: false,
         status: 'active',
         avatarUrl: '',
@@ -195,9 +198,9 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser }: UserFormD
               onChange={handleChange('role')}
               disabled={loading}
             >
-              {ROLES.map((role) => (
+              {availableRoles.map((role) => (
                 <MenuItem key={role} value={role}>
-                  {role}
+                  {role.charAt(0).toUpperCase() + role.slice(1)}
                 </MenuItem>
               ))}
             </TextField>

@@ -26,16 +26,28 @@
 
 ## Authentication
 
-The application uses Supabase authentication. A test user account is available:
+The application uses Supabase authentication with role-based access control. Test accounts are available:
 
-- **Email:** `hello@gmail.com`
-- **Password:** `@demo1234`
+### Test Accounts
+
+**Admin Account** (Full access - can create all user types)
+- **Email:** `admin@test.com`
+- **Password:** `admin123`
+
+**Manager Account** (Can create managers and users)
+- **Email:** `manager@test.com`
+- **Password:** `manager123`
+
+**User Account** (No access to user management)
+- **Email:** `user@test.com`
+- **Password:** `user123`
 
 ### Features
 - Sign in with email/password
 - Logout functionality
 - Session management
-- Protected routes
+- Role-based access control
+- Protected routes based on user role
 
 ## Upgrade to PRO Version
 

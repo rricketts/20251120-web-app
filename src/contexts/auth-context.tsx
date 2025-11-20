@@ -3,11 +3,13 @@ import type { User, Session } from '@supabase/supabase-js';
 import { useState, useEffect, useContext, createContext } from 'react';
 
 import { supabase } from 'src/lib/supabase';
+import { getUserRoleByEmail } from 'src/lib/user-role';
 
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  userRole: string;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -19,19 +21,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>('user');
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    const initAuth = async () => {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
+
+      if (currentSession?.user?.email) {
+        const role = await getUserRoleByEmail(currentSession.user.email);
+        setUserRole(role);
+      }
+
       setLoading(false);
-    });
+    };
+
+    initAuth();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+    } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
+
+      if (currentSession?.user?.email) {
+        const role = await getUserRoleByEmail(currentSession.user.email);
+        setUserRole(role);
+      } else {
+        setUserRole('user');
+      }
+
       setLoading(false);
     });
 
@@ -62,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     session,
     loading,
+    userRole,
     signIn,
     signUp,
     signOut,

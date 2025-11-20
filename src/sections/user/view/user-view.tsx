@@ -10,6 +10,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
 
 import { supabase } from 'src/lib/supabase';
+import { useAuth } from 'src/contexts/auth-context';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
@@ -42,12 +43,15 @@ function convertUserToUserProps(user: User): UserProps {
 
 export function UserView() {
   const table = useTable();
+  const { userRole } = useAuth();
 
   const [filterName, setFilterName] = useState('');
   const [users, setUsers] = useState<UserProps[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editUser, setEditUser] = useState<UserProps | null>(null);
+
+  const canManageUsers = userRole === 'admin' || userRole === 'manager';
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -115,6 +119,21 @@ export function UserView() {
   });
 
   const notFound = !dataFiltered.length && !!filterName;
+
+  if (!canManageUsers) {
+    return (
+      <DashboardContent>
+        <Box sx={{ textAlign: 'center', py: 10 }}>
+          <Typography variant="h4" sx={{ mb: 2 }}>
+            Access Denied
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            You do not have permission to access this section.
+          </Typography>
+        </Box>
+      </DashboardContent>
+    );
+  }
 
   return (
     <DashboardContent>
@@ -216,6 +235,7 @@ export function UserView() {
         onClose={handleCloseDialog}
         onSuccess={handleSuccess}
         editUser={editUser}
+        currentUserRole={userRole}
       />
     </DashboardContent>
   );
