@@ -37,19 +37,10 @@ type Project = {
 export function ProjectsView() {
   const navigate = useNavigate();
   const router = useRouter();
-  const [currentTab, setCurrentTab] = useState('projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-
-  const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
-    if (newValue === 'users') {
-      navigate('/user');
-    } else {
-      setCurrentTab(newValue);
-    }
-  };
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -188,7 +179,7 @@ export function ProjectsView() {
   return (
     <DashboardContent>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
-        <Typography variant="h4">Users & Projects</Typography>
+        <Typography variant="h4">Projects</Typography>
         <Button
           variant="contained"
           color="inherit"
@@ -198,11 +189,6 @@ export function ProjectsView() {
           New project
         </Button>
       </Stack>
-
-      <Tabs value={currentTab} onChange={handleTabChange} sx={{ mb: 3 }}>
-        <Tab label="Users" value="users" />
-        <Tab label="Projects" value="projects" />
-      </Tabs>
 
       {loading ? (
         <Card sx={{ p: 3 }}>
