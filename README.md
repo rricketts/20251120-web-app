@@ -24,6 +24,19 @@
 - **Build:** `npm run build` or `yarn build`
 - Open browser: `http://localhost:3039`
 
+## Authentication
+
+The application uses Supabase authentication. A test user account is available:
+
+- **Email:** `hello@gmail.com`
+- **Password:** `@demo1234`
+
+### Features
+- Sign in with email/password
+- Logout functionality
+- Session management
+- Protected routes
+
 ## Upgrade to PRO Version
 
 | Minimal Free                | [Minimal Pro](https://material-ui.com/store/items/minimal-dashboard/)                                   |

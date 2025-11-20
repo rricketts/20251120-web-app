@@ -7,6 +7,7 @@ import Fab from '@mui/material/Fab';
 import { usePathname } from 'src/routes/hooks';
 
 import { ThemeProvider } from 'src/theme/theme-provider';
+import { AuthProvider } from 'src/contexts/auth-context';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -40,8 +41,10 @@ export default function App({ children }: AppProps) {
 
   return (
     <ThemeProvider>
-      {children}
-      {githubButton()}
+      <AuthProvider>
+        {children}
+        {githubButton()}
+      </AuthProvider>
     </ThemeProvider>
   );
 }
