@@ -126,7 +126,7 @@ export function TeamsView() {
   );
 
   const handleSaveTeam = useCallback(
-    async (values: { name: string; plan: string; logo_url: string }) => {
+    async (values: { name: string; plan: string }) => {
       try {
         const {
           data: { user },
@@ -140,7 +140,6 @@ export function TeamsView() {
             .update({
               name: values.name,
               plan: values.plan,
-              logo_url: values.logo_url || null,
             })
             .eq('id', editingTeam.id);
 
@@ -151,7 +150,7 @@ export function TeamsView() {
             .insert({
               name: values.name,
               plan: values.plan,
-              logo_url: values.logo_url || null,
+              logo_url: null,
               owner_id: user.id,
             })
             .select()

@@ -24,13 +24,12 @@ type TeamFormDialogProps = {
     logo_url: string | null;
   } | null;
   onClose: () => void;
-  onSave: (values: { name: string; plan: string; logo_url: string }) => Promise<void>;
+  onSave: (values: { name: string; plan: string }) => Promise<void>;
 };
 
 export function TeamFormDialog({ open, team, onClose, onSave }: TeamFormDialogProps) {
   const [name, setName] = useState('');
   const [plan, setPlan] = useState('Free');
-  const [logoUrl, setLogoUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -38,11 +37,9 @@ export function TeamFormDialog({ open, team, onClose, onSave }: TeamFormDialogPr
     if (team) {
       setName(team.name);
       setPlan(team.plan);
-      setLogoUrl(team.logo_url || '');
     } else {
       setName('');
       setPlan('Free');
-      setLogoUrl('');
     }
     setError('');
   }, [team, open]);
@@ -58,7 +55,7 @@ export function TeamFormDialog({ open, team, onClose, onSave }: TeamFormDialogPr
 
     try {
       setSaving(true);
-      await onSave({ name: name.trim(), plan, logo_url: logoUrl.trim() });
+      await onSave({ name: name.trim(), plan });
     } catch (err) {
       setError('Failed to save team. Please try again.');
       console.error('Error saving team:', err);
@@ -97,15 +94,6 @@ export function TeamFormDialog({ open, team, onClose, onSave }: TeamFormDialogPr
                 <MenuItem value="Enterprise">Enterprise</MenuItem>
               </Select>
             </FormControl>
-
-            <TextField
-              fullWidth
-              label="Logo URL (optional)"
-              value={logoUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
-              disabled={saving}
-              placeholder="https://example.com/logo.png"
-            />
 
             {error && name.trim() && (
               <Typography variant="body2" color="error">
