@@ -112,6 +112,30 @@ export function UserView() {
     }
   };
 
+  const handleDeleteSelected = async () => {
+    if (table.selected.length === 0) return;
+
+    const count = table.selected.length;
+    if (!window.confirm(`Are you sure you want to delete ${count} user${count > 1 ? 's' : ''}?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .in('id', table.selected);
+
+      if (error) throw error;
+
+      table.onSelectAllRows(false, []);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error deleting users:', error);
+      alert('Failed to delete users');
+    }
+  };
+
   const dataFiltered: UserProps[] = applyFilter({
     inputData: users,
     comparator: getComparator(table.order, table.orderBy),
@@ -165,6 +189,7 @@ export function UserView() {
             setFilterName(event.target.value);
             table.onResetPage();
           }}
+          onDeleteSelected={handleDeleteSelected}
         />
 
         <Scrollbar>
