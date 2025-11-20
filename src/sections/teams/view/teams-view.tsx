@@ -46,7 +46,11 @@ export function TeamsView() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (teamsError) throw teamsError;
+      if (teamsError) {
+        console.error('Error fetching teams:', teamsError);
+        setTeams([]);
+        return;
+      }
 
       const teamsWithCounts = await Promise.all(
         (teamsData || []).map(async (team) => {
@@ -62,6 +66,7 @@ export function TeamsView() {
       setTeams(teamsWithCounts);
     } catch (error) {
       console.error('Error fetching teams:', error);
+      setTeams([]);
     } finally {
       setLoading(false);
     }
