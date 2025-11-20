@@ -8,6 +8,9 @@ import Popover from '@mui/material/Popover';
 import MenuList from '@mui/material/MenuList';
 import ButtonBase from '@mui/material/ButtonBase';
 import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
+import Divider from '@mui/material/Divider';
+
+import { useRouter } from 'src/routes/hooks';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -24,6 +27,7 @@ export type WorkspacesPopoverProps = ButtonBaseProps & {
 };
 
 export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopoverProps) {
+  const router = useRouter();
   const [workspace, setWorkspace] = useState(data[0]);
 
   const [openPopover, setOpenPopover] = useState<HTMLButtonElement | null>(null);
@@ -43,6 +47,11 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
     },
     [handleClosePopover]
   );
+
+  const handleManageTeams = useCallback(() => {
+    handleClosePopover();
+    router.push('/teams');
+  }, [handleClosePopover, router]);
 
   const renderAvatar = (alt: string, src: string) => (
     <Box component="img" alt={alt} src={src} sx={{ width: 24, height: 24, borderRadius: '50%' }} />
@@ -125,6 +134,15 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
               {renderLabel(option.plan)}
             </MenuItem>
           ))}
+
+          <Divider sx={{ my: 0.5 }} />
+
+          <MenuItem onClick={handleManageTeams}>
+            <Iconify icon="solar:settings-bold-duotone" width={24} />
+            <Box component="span" sx={{ flexGrow: 1 }}>
+              Manage teams
+            </Box>
+          </MenuItem>
         </MenuList>
       </Popover>
     </>
