@@ -13,7 +13,6 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  company: string;
   role: string;
   is_verified: boolean;
   status: string;

@@ -42,7 +42,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    company: '',
     role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
     isVerified: false,
     status: 'active',
@@ -57,7 +56,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
       setFormData({
         name: editUser.name,
         email: '',
-        company: editUser.company,
         role: editUser.role,
         isVerified: editUser.isVerified,
         status: editUser.status,
@@ -67,7 +65,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
       setFormData({
         name: '',
         email: '',
-        company: '',
         role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
         isVerified: false,
         status: 'active',
@@ -101,7 +98,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
           .from('users')
           .update({
             name: formData.name,
-            company: formData.company,
             role: formData.role,
             is_verified: formData.isVerified,
             status: formData.status,
@@ -115,7 +111,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
           {
             name: formData.name,
             email: formData.email,
-            company: formData.company,
             role: formData.role,
             is_verified: formData.isVerified,
             status: formData.status,
@@ -130,6 +125,15 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         name: '',
         email: '',
         company: '',
+        role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
+        isVerified: false,
+        status: 'active',
+        avatarUrl: '',
+      });
+
+      setFormData({
+        name: '',
+        email: '',
         role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
         isVerified: false,
         status: 'active',
@@ -179,15 +183,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
                 disabled={loading}
               />
             )}
-
-            <TextField
-              required
-              fullWidth
-              label="Company"
-              value={formData.company}
-              onChange={handleChange('company')}
-              disabled={loading}
-            />
 
             <TextField
               required
