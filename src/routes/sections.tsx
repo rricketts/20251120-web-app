@@ -1,7 +1,7 @@
 import type { RouteObject } from 'react-router';
 
 import { lazy, Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
@@ -43,6 +43,7 @@ const renderFallback = () => (
 
 export const routesSection: RouteObject[] = [
   {
+    path: '/',
     element: (
       <ProtectedRoute>
         <DashboardLayout>
@@ -68,9 +69,5 @@ export const routesSection: RouteObject[] = [
       </AuthLayout>
     ),
   },
-  {
-    path: '404',
-    element: <Page404 />,
-  },
-  { path: '*', element: <Page404 /> },
+  { path: '*', element: <Navigate to="/" replace /> },
 ];
