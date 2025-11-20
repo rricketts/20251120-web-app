@@ -118,6 +118,10 @@ export function DashboardLayout({
 
   const renderMain = () => <MainSection {...slotProps?.main}>{children}</MainSection>;
 
+  if (loading) {
+    return null;
+  }
+
   return (
     <LayoutSection
       /** **************************************

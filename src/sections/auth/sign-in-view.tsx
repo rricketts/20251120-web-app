@@ -123,6 +123,10 @@ export function SignInView() {
     </Box>
   );
 
+  if (authLoading) {
+    return null;
+  }
+
   return (
     <>
       <Box
@@ -141,7 +145,7 @@ export function SignInView() {
             color: 'text.secondary',
           }}
         >
-          Don’t have an account?
+          Don't have an account?
           <Link variant="subtitle2" sx={{ ml: 0.5 }}>
             Get started
           </Link>
