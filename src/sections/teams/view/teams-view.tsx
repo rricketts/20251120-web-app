@@ -1,6 +1,7 @@
 import type { SelectChangeEvent } from '@mui/material/Select';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
@@ -11,10 +12,13 @@ import IconButton from '@mui/material/IconButton';
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 
 import { useRouter } from 'src/routes/hooks';
 
 import { supabase } from 'src/lib/supabase';
+import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -31,11 +35,21 @@ type Team = {
 };
 
 export function TeamsView() {
+  const navigate = useNavigate();
   const router = useRouter();
+  const [currentTab, setCurrentTab] = useState('teams');
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
+    if (newValue === 'users') {
+      navigate('/user');
+    } else {
+      setCurrentTab(newValue);
+    }
+  };
 
   const fetchTeams = useCallback(async () => {
     try {
@@ -173,17 +187,9 @@ export function TeamsView() {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={5}>
-        <Box>
-          <Typography variant="h4" sx={{ mb: 0.5 }}>
-            Teams
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Manage your teams and their members
-          </Typography>
-        </Box>
-
+    <DashboardContent>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
+        <Typography variant="h4">Users & Teams</Typography>
         <Button
           variant="contained"
           color="inherit"
@@ -193,6 +199,11 @@ export function TeamsView() {
           New team
         </Button>
       </Stack>
+
+      <Tabs value={currentTab} onChange={handleTabChange} sx={{ mb: 3 }}>
+        <Tab label="Users" value="users" />
+        <Tab label="Teams" value="teams" />
+      </Tabs>
 
       {loading ? (
         <Card sx={{ p: 3 }}>
@@ -284,6 +295,6 @@ export function TeamsView() {
         onClose={handleCloseDialog}
         onSave={handleSaveTeam}
       />
-    </Container>
+    </DashboardContent>
   );
 }

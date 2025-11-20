@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -8,6 +9,9 @@ import TableBody from '@mui/material/TableBody';
 import Typography from '@mui/material/Typography';
 import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
+import Stack from '@mui/material/Stack';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/contexts/auth-context';
@@ -42,9 +46,11 @@ function convertUserToUserProps(user: User): UserProps {
 }
 
 export function UserView() {
+  const navigate = useNavigate();
   const table = useTable();
   const { userRole } = useAuth();
 
+  const [currentTab, setCurrentTab] = useState('users');
   const [filterName, setFilterName] = useState('');
   const [users, setUsers] = useState<UserProps[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +58,14 @@ export function UserView() {
   const [editUser, setEditUser] = useState<UserProps | null>(null);
 
   const canManageUsers = userRole === 'admin' || userRole === 'manager';
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
+    if (newValue === 'teams') {
+      navigate('/user/teams');
+    } else {
+      setCurrentTab(newValue);
+    }
+  };
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -137,16 +151,8 @@ export function UserView() {
 
   return (
     <DashboardContent>
-      <Box
-        sx={{
-          mb: 5,
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        <Typography variant="h4" sx={{ flexGrow: 1 }}>
-          Users
-        </Typography>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
+        <Typography variant="h4">Users & Teams</Typography>
         <Button
           variant="contained"
           color="inherit"
@@ -155,7 +161,12 @@ export function UserView() {
         >
           New user
         </Button>
-      </Box>
+      </Stack>
+
+      <Tabs value={currentTab} onChange={handleTabChange} sx={{ mb: 3 }}>
+        <Tab label="Users" value="users" />
+        <Tab label="Teams" value="teams" />
+      </Tabs>
 
       <Card>
         <UserTableToolbar
