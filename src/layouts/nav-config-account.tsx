@@ -11,13 +11,13 @@ export const _account: AccountPopoverProps['data'] = [
     icon: <Iconify width={22} icon="solar:shield-keyhole-bold-duotone" />,
   },
   {
-    label: 'Users',
-    href: '/user',
-    icon: <Iconify width={22} icon="solar:users-group-rounded-bold-duotone" />,
-  },
-  {
     label: 'Projects',
     href: '/user/projects',
     icon: <Iconify width={22} icon="solar:folder-bold-duotone" />,
+  },
+  {
+    label: 'Users',
+    href: '/user',
+    icon: <Iconify width={22} icon="solar:users-group-rounded-bold-duotone" />,
   },
 ];
