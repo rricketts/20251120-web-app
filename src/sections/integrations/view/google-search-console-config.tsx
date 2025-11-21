@@ -123,9 +123,14 @@ export function GoogleSearchConsoleConfig() {
   }, [selectedProject]);
 
   const loadExistingConfig = async () => {
-    if (!selectedProject) return;
+    console.log('[GSC Load] Loading existing config for project:', selectedProject?.id);
+    if (!selectedProject) {
+      console.log('[GSC Load] No project selected, returning');
+      return;
+    }
 
     try {
+      console.log('[GSC Load] Fetching existing config from database');
       addDebugLog('Fetching existing config from database');
       const { data, error: fetchError } = await supabase
         .from('integration_credentials')
@@ -135,27 +140,38 @@ export function GoogleSearchConsoleConfig() {
         .eq('is_active', true)
         .maybeSingle();
 
+      console.log('[GSC Load] Database query result:', { data, error: fetchError });
       if (fetchError) {
-        addDebugLog(`Database fetch error: ${fetchError.message}`);
+        console.error('[GSC Load] Database fetch error:', fetchError);
+        addDebugLog(`Database fetch error: ${JSON.stringify(fetchError)}`);
         throw fetchError;
       }
 
       if (data) {
+        console.log('[GSC Load] RAW EXISTING CONFIG DATA:', JSON.stringify(data, null, 2));
         addDebugLog('Existing config found, setting connected state');
+        addDebugLog(`Config data: ${JSON.stringify(data)}`);
+        console.log('[GSC Load] Setting isConnected=true');
         setIsConnected(true);
+        console.log('[GSC Load] Setting selectedProperty:', data.selected_property);
         setSelectedProperty(data.selected_property || '');
+        console.log('[GSC Load] Setting accessToken (length):', data.access_token?.length);
         setAccessToken(data.access_token);
         if (data.access_token) {
+          console.log('[GSC Load] Access token found, fetching properties');
           addDebugLog('Access token found, fetching properties');
           await fetchProperties(data.access_token);
         }
       } else {
+        console.log('[GSC Load] No existing config found');
         addDebugLog('No existing config found');
       }
     } catch (err) {
+      console.error('[GSC Load] Error loading config:', err);
       addDebugLog(`Error loading config: ${err instanceof Error ? err.message : String(err)}`);
       console.error('Error loading config:', err);
     } finally {
+      console.log('[GSC Load] Load config complete, setting isLoading=false');
       addDebugLog('Load config complete');
       setIsLoading(false);
     }
@@ -221,15 +237,24 @@ export function GoogleSearchConsoleConfig() {
       }
 
       const tokenData = await tokenResponse.json();
+      console.log('[GSC OAuth] RAW TOKEN DATA:', JSON.stringify(tokenData, null, 2));
       addDebugLog('Token received successfully');
+      addDebugLog(`Token data: ${JSON.stringify(tokenData)}`);
       addDebugLog(`Token has refresh_token: ${!!tokenData.refresh_token}`);
+      addDebugLog(`Access token length: ${tokenData.access_token?.length || 0}`);
+      addDebugLog(`Refresh token length: ${tokenData.refresh_token?.length || 0}`);
+      addDebugLog(`Expires in: ${tokenData.expires_in} seconds`);
+      console.log('[GSC OAuth] Setting access token in state');
       setAccessToken(tokenData.access_token);
 
+      console.log('[GSC OAuth] Fetching properties with new token');
       addDebugLog('Fetching properties with new token');
       await fetchProperties(tokenData.access_token);
 
+      console.log('[GSC OAuth] Getting user data from Supabase');
       addDebugLog('Getting user data');
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      console.log('[GSC OAuth] User data result:', { user: userData?.user?.id, error: userError });
       if (!userData.user) {
         addDebugLog('No user found in session');
         throw new Error('User not found');
@@ -238,27 +263,36 @@ export function GoogleSearchConsoleConfig() {
         addDebugLog('No project selected');
         throw new Error('Project not found');
       }
+      console.log('[GSC OAuth] User ID:', userData.user.id, 'Project ID:', selectedProject.id);
       addDebugLog(`User ID: ${userData.user.id}, Project ID: ${selectedProject.id}`);
 
+      const credentialsToSave = {
+        project_id: selectedProject.id,
+        integration_type: 'google_search_console',
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        token_expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+        is_active: true,
+        created_by: userData.user.id,
+      };
+      console.log('[GSC OAuth] Credentials to save:', JSON.stringify(credentialsToSave, null, 2));
       addDebugLog('Saving credentials to database');
-      const { error: saveError } = await supabase
-        .from('integration_credentials')
-        .upsert({
-          project_id: selectedProject.id,
-          integration_type: 'google_search_console',
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token,
-          token_expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-          is_active: true,
-          created_by: userData.user.id,
-        }, {
-          onConflict: 'project_id,integration_type',
-        });
+      addDebugLog(`Credentials payload: ${JSON.stringify(credentialsToSave)}`);
 
+      const { data: saveData, error: saveError } = await supabase
+        .from('integration_credentials')
+        .upsert(credentialsToSave, {
+          onConflict: 'project_id,integration_type',
+        })
+        .select();
+
+      console.log('[GSC OAuth] Database save result:', { data: saveData, error: saveError });
       if (saveError) {
-        addDebugLog(`Database save error: ${saveError.message}`);
+        console.error('[GSC OAuth] Database save error:', saveError);
+        addDebugLog(`Database save error: ${JSON.stringify(saveError)}`);
         throw saveError;
       }
+      console.log('[GSC OAuth] Database save successful, saved data:', JSON.stringify(saveData, null, 2));
 
       console.log('[GSC OAuth] Credentials saved successfully');
       addDebugLog('Credentials saved successfully');
@@ -288,7 +322,9 @@ export function GoogleSearchConsoleConfig() {
   };
 
   const fetchProperties = async (token: string) => {
+    console.log('[GSC Fetch] Fetching properties with token (length):', token?.length);
     try {
+      console.log('[GSC Fetch] Making request to Google Search Console API');
       addDebugLog('Fetching GSC properties from API');
       const response = await fetch(
         'https://www.googleapis.com/webmasters/v3/sites',
@@ -299,16 +335,20 @@ export function GoogleSearchConsoleConfig() {
         }
       );
 
+      console.log('[GSC Fetch] Response received - status:', response.status, 'statusText:', response.statusText);
       addDebugLog(`Properties response status: ${response.status}`);
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('[GSC Fetch] Properties fetch failed:', errorText);
         addDebugLog(`Properties fetch failed: ${errorText}`);
         throw new Error('Failed to fetch properties');
       }
 
       const data = await response.json();
+      console.log('[GSC Fetch] RAW PROPERTIES RESPONSE:', JSON.stringify(data, null, 2));
       const siteEntries = data.siteEntry || [];
+      console.log('[GSC Fetch] Found', siteEntries.length, 'properties');
       addDebugLog(`Found ${siteEntries.length} properties`);
       addDebugLog(`Properties data: ${JSON.stringify(siteEntries.map((s: any) => s.siteUrl))}`);
 
@@ -317,11 +357,14 @@ export function GoogleSearchConsoleConfig() {
         permissionLevel: site.permissionLevel,
       }));
 
+      console.log('[GSC Fetch] Mapped properties:', JSON.stringify(mappedProperties, null, 2));
       addDebugLog(`Setting ${mappedProperties.length} properties in state`);
       setProperties(mappedProperties);
+      console.log('[GSC Fetch] Properties set in state');
       addDebugLog('Properties set in state');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('[GSC Fetch] Error fetching properties:', err);
       addDebugLog(`Error fetching properties: ${errorMessage}`);
       console.error('Error fetching properties:', err);
       setError(`Failed to fetch Search Console properties: ${errorMessage}`);
