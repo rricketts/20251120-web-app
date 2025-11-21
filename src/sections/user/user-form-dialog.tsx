@@ -185,14 +185,32 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
 
         if (updateError) throw updateError;
 
-        if (formData.isVerified && !editUser.isVerified) {
-          const { error: authUpdateError } = await supabase.auth.admin.updateUserById(
-            editUser.id,
-            { email_confirm: true }
-          );
+        if (formData.isVerified !== editUser.isVerified) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            try {
+              const response = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-user-email`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    userId: editUser.id,
+                    verify: formData.isVerified,
+                  }),
+                }
+              );
 
-          if (authUpdateError) {
-            console.error('Failed to confirm email in auth system:', authUpdateError);
+              if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Failed to update email verification:', errorData);
+              }
+            } catch (error) {
+              console.error('Failed to call verify-user-email function:', error);
+            }
           }
         }
 
@@ -237,13 +255,31 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         userId = authData.user.id;
 
         if (formData.isVerified) {
-          const { error: authUpdateError } = await supabase.auth.admin.updateUserById(
-            userId,
-            { email_confirm: true }
-          );
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            try {
+              const response = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-user-email`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    userId: userId,
+                    verify: true,
+                  }),
+                }
+              );
 
-          if (authUpdateError) {
-            console.error('Failed to confirm email in auth system:', authUpdateError);
+              if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Failed to verify email:', errorData);
+              }
+            } catch (error) {
+              console.error('Failed to call verify-user-email function:', error);
+            }
           }
         }
 
