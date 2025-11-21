@@ -19,7 +19,7 @@ export const KeywordsPage = lazy(() => import('src/pages/keywords'));
 export const BacklinksPage = lazy(() => import('src/pages/backlinks'));
 export const CompetitorsPage = lazy(() => import('src/pages/competitors'));
 export const UserPage = lazy(() => import('src/pages/user'));
-export const SignInPage = lazy(() => import('src/pages/sign-in'));
+export const LoginPage = lazy(() => import('src/pages/login'));
 export const ProjectsPage = lazy(() => import('src/pages/projects'));
 export const IntegrationsPage = lazy(() => import('src/pages/integrations'));
 export const ProfilePage = lazy(() => import('src/pages/profile'));
@@ -73,7 +73,7 @@ export const routesSection: RouteObject[] = [
     path: 'login',
     element: (
       <AuthLayout>
-        <SignInPage />
+        <LoginPage />
       </AuthLayout>
     ),
   },

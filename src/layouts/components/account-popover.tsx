@@ -61,7 +61,7 @@ export function AccountPopover({ data = [], sx, ...other }: AccountPopoverProps)
   const handleLogout = useCallback(async () => {
     handleClosePopover();
     await signOut();
-    router.push('/sign-in');
+    router.push('/login');
   }, [handleClosePopover, signOut, router]);
 
   return (
