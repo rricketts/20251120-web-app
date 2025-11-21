@@ -14,6 +14,7 @@ import { AnalyticsWidgetSummary } from '../analytics-widget-summary';
 import { AnalyticsTrafficBySite } from '../analytics-traffic-by-site';
 import { AnalyticsCurrentSubject } from '../analytics-current-subject';
 import { AnalyticsConversionRates } from '../analytics-conversion-rates';
+import { AnalyticsDomainMetrics } from '../analytics-domain-metrics';
 
 // ----------------------------------------------------------------------
 
@@ -152,6 +153,24 @@ export function OverviewAnalyticsView() {
 
         <Grid size={{ xs: 12, md: 6, lg: 8 }}>
           <AnalyticsTasks title="Tasks" list={_tasks} />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+          <AnalyticsDomainMetrics
+            title="Domain Metrics"
+            subheader="SEO and performance indicators"
+            metrics={[
+              { label: 'Domain Age', value: '5 years' },
+              { label: 'IP Address', value: '192.168.1.1' },
+              { label: 'Load Time', value: '1.2s' },
+              { label: 'Backlinks', value: '12,450' },
+              { label: 'Linking Domains', value: '850' },
+              { label: 'Dofollow Links', value: '9,340' },
+              { label: 'Domain Strength', value: '72/100' },
+              { label: 'Google PR', value: '6' },
+              { label: 'Alexa Rank', value: '125,430' },
+            ]}
+          />
         </Grid>
       </Grid>
     </DashboardContent>
