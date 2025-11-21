@@ -28,4 +28,9 @@ export const navData = [
     path: '/competitors',
     icon: icon('ic-cart'),
   },
+  {
+    title: 'Integrations',
+    path: '/integrations',
+    icon: icon('ic-lock'),
+  },
 ];

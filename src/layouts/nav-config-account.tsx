@@ -20,9 +20,4 @@ export const _account: AccountPopoverProps['data'] = [
     href: '/user/projects',
     icon: <Iconify width={22} icon="solar:folder-bold-duotone" />,
   },
-  {
-    label: 'Integrations',
-    href: '/integrations',
-    icon: <Iconify width={22} icon="solar:link-circle-bold-duotone" />,
-  },
 ];
