@@ -136,19 +136,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const redirectUrl = `${req.headers.get('origin') || supabaseUrl}/`;
-
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
-      email: targetUser.user.email || '',
-      options: {
-        redirectTo: redirectUrl,
-      },
+    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
+      userId: targetUserId,
     });
 
-    if (linkError || !linkData) {
+    if (sessionError || !sessionData) {
       return new Response(
-        JSON.stringify({ error: 'Failed to generate login link' }),
+        JSON.stringify({ error: 'Failed to create session' }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -158,7 +152,8 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({
-        loginUrl: linkData.properties?.action_link,
+        accessToken: sessionData.session.access_token,
+        refreshToken: sessionData.session.refresh_token,
         success: true
       }),
       {

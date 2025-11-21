@@ -177,13 +177,18 @@ export function UserView() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to generate login link');
+        throw new Error(result.error || 'Failed to create session');
       }
 
-      if (result.loginUrl) {
-        window.location.href = result.loginUrl;
+      if (result.accessToken && result.refreshToken) {
+        await supabase.auth.setSession({
+          access_token: result.accessToken,
+          refresh_token: result.refreshToken,
+        });
+
+        window.location.href = '/';
       } else {
-        throw new Error('No login URL received');
+        throw new Error('No session tokens received');
       }
     } catch (error) {
       console.error('Error logging in as user:', error);
