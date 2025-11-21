@@ -35,6 +35,7 @@ export function IntegrationsView() {
       description: 'Track and analyze website traffic and user behavior',
       icon: 'logos:google-analytics',
       connected: false,
+      comingSoon: true,
     },
     {
       id: 'google-search-console',
