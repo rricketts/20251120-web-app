@@ -25,7 +25,6 @@ import { generateAuthUrl, fetchSearchConsoleSites, fetchSearchAnalytics, refresh
 import { Iconify } from 'src/components/iconify';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
 
 interface Site {
   siteUrl: string;
@@ -165,7 +164,20 @@ export function GoogleSearchConsoleConfig() {
     }
 
     try {
-      const newAccessToken = await refreshAccessToken(connection.refresh_token, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        setError('User not authenticated');
+        return;
+      }
+
+      const newAccessToken = await refreshAccessToken(
+        connection.refresh_token,
+        import.meta.env.VITE_SUPABASE_URL,
+        session.access_token
+      );
 
       const { error: updateError } = await supabase
         .from('oauth_connections')

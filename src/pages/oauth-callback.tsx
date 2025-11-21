@@ -6,10 +6,6 @@ import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { supabase } from 'src/lib/supabase';
-import { exchangeCodeForTokens } from 'src/lib/googleAuth';
-
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
 
 export default function OAuthCallbackPage() {
   const navigate = useNavigate();
@@ -74,7 +70,35 @@ export default function OAuthCallbackPage() {
 
         localStorage.removeItem('oauth_state');
 
-        const tokens = await exchangeCodeForTokens(code, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session) {
+          throw new Error('User not authenticated');
+        }
+
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              code,
+              redirectUri: `${window.location.origin}/callback`,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to exchange authorization code');
+        }
+
+        const tokens = await response.json();
 
         const {
           data: { user },
