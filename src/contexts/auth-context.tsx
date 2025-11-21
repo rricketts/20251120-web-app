@@ -38,21 +38,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const initAuth = async () => {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
 
-      if (currentSession?.user?.email) {
-        const data = await getUserDataByEmail(currentSession.user.email);
-        setUserData(data);
-        setUserRole(data?.role || 'viewer');
+        if (currentSession?.user?.email) {
+          const data = await getUserDataByEmail(currentSession.user.email);
+          setUserData(data);
+          setUserRole(data?.role || 'viewer');
 
-        if (currentSession.user.id) {
-          await updateLastLogin(currentSession.user.id);
+          if (currentSession.user.id) {
+            await updateLastLogin(currentSession.user.id);
+          }
         }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     initAuth();
