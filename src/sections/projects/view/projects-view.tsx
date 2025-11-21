@@ -48,10 +48,15 @@ export function ProjectsView() {
     try {
       setLoading(true);
 
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current user:', user?.email, 'Role:', userRole);
+
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
+
+      console.log('Projects query result:', { projectsData, projectsError });
 
       if (projectsError) {
         console.error('Error fetching projects:', projectsError);
@@ -70,6 +75,7 @@ export function ProjectsView() {
         })
       );
 
+      console.log('Final projects with counts:', projectsWithCounts);
       setProjects(projectsWithCounts);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -77,7 +83,7 @@ export function ProjectsView() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userRole]);
 
   useEffect(() => {
     fetchProjects();
