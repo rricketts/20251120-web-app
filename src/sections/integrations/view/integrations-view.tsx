@@ -1,0 +1,113 @@
+import { useState } from 'react';
+
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Grid from '@mui/material/Grid';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
+
+import { DashboardContent } from 'src/layouts/dashboard';
+import { Iconify } from 'src/components/iconify';
+
+type Integration = {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  connected: boolean;
+};
+
+export function IntegrationsView() {
+  const [integrations, setIntegrations] = useState<Integration[]>([
+    {
+      id: 'google-analytics',
+      name: 'Google Analytics',
+      description: 'Track and analyze website traffic and user behavior',
+      icon: 'logos:google-analytics',
+      connected: false,
+    },
+    {
+      id: 'google-search-console',
+      name: 'Google Search Console',
+      description: 'Monitor and optimize your site\'s search performance',
+      icon: 'logos:google-icon',
+      connected: false,
+    },
+  ]);
+
+  const handleToggle = (id: string) => {
+    setIntegrations(prev =>
+      prev.map(integration =>
+        integration.id === id
+          ? { ...integration, connected: !integration.connected }
+          : integration
+      )
+    );
+  };
+
+  return (
+    <DashboardContent>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
+        <Typography variant="h4">Integrations</Typography>
+      </Stack>
+
+      <Grid container spacing={3}>
+        {integrations.map((integration) => (
+          <Grid key={integration.id} item xs={12} sm={6} md={4}>
+            <Card>
+              <CardContent>
+                <Stack spacing={2}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: 1.5,
+                        bgcolor: 'background.neutral',
+                      }}
+                    >
+                      <Iconify icon={integration.icon} width={32} />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="h6">{integration.name}</Typography>
+                    </Box>
+                  </Box>
+
+                  <Typography variant="body2" color="text.secondary">
+                    {integration.description}
+                  </Typography>
+
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={integration.connected}
+                          onChange={() => handleToggle(integration.id)}
+                        />
+                      }
+                      label={integration.connected ? 'Connected' : 'Disconnected'}
+                    />
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={!integration.connected}
+                    >
+                      Configure
+                    </Button>
+                  </Stack>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    </DashboardContent>
+  );
+}

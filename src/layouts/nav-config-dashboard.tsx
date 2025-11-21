@@ -28,4 +28,9 @@ export const navData = [
     path: '/user/projects',
     icon: icon('ic-lock'),
   },
+  {
+    title: 'Integrations',
+    path: '/integrations',
+    icon: icon('ic-cart'),
+  },
 ];
