@@ -135,6 +135,62 @@ export function UserView() {
     }
   };
 
+  const handleLoginAs = async (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    if (userRole === 'manager') {
+      if (['super_admin', 'admin'].includes(user.role)) {
+        alert('Managers cannot login as admins or super admins');
+        return;
+      }
+    }
+
+    if (userRole === 'admin' && user.role === 'super_admin') {
+      alert('Admins cannot login as super admins');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to login as ${user.name} (${user.email})?`)) {
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        alert('Authentication error');
+        return;
+      }
+
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/login-as-user`;
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ targetUserId: userId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to generate login link');
+      }
+
+      if (result.loginUrl) {
+        window.location.href = result.loginUrl;
+      } else {
+        throw new Error('No login URL received');
+      }
+    } catch (error) {
+      console.error('Error logging in as user:', error);
+      alert(`Failed to login as user: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   const dataFiltered: UserProps[] = applyFilter({
     inputData: users,
     comparator: getComparator(table.order, table.orderBy),
@@ -234,6 +290,7 @@ export function UserView() {
                       onSelectRow={() => table.onSelectRow(row.id)}
                       onEdit={handleEdit}
                       onDelete={handleDelete}
+                      onLoginAs={handleLoginAs}
                     />
                   ))}
 

@@ -31,9 +31,10 @@ type UserTableRowProps = {
   onSelectRow: () => void;
   onEdit?: (user: UserProps) => void;
   onDelete?: (userId: string) => void;
+  onLoginAs?: (userId: string) => void;
 };
 
-export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: UserTableRowProps) {
+export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete, onLoginAs }: UserTableRowProps) {
   const [openPopover, setOpenPopover] = useState<HTMLButtonElement | null>(null);
 
   const handleOpenPopover = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
@@ -53,6 +54,11 @@ export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: U
     handleClosePopover();
     onDelete?.(row.id);
   }, [onDelete, row.id, handleClosePopover]);
+
+  const handleLoginAs = useCallback(() => {
+    handleClosePopover();
+    onLoginAs?.(row.id);
+  }, [onLoginAs, row.id, handleClosePopover]);
 
   return (
     <>
@@ -111,7 +117,7 @@ export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: U
           sx={{
             p: 0.5,
             gap: 0.5,
-            width: 140,
+            width: 160,
             display: 'flex',
             flexDirection: 'column',
             [`& .${menuItemClasses.root}`]: {
@@ -122,6 +128,13 @@ export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: U
             },
           }}
         >
+          {onLoginAs && (
+            <MenuItem onClick={handleLoginAs}>
+              <Iconify icon="solar:login-3-bold" />
+              Login as User
+            </MenuItem>
+          )}
+
           <MenuItem onClick={handleEdit}>
             <Iconify icon="solar:pen-bold" />
             Edit
