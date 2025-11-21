@@ -23,6 +23,7 @@ import { MenuButton } from '../components/menu-button';
 import { HeaderSection } from '../core/header-section';
 import { LayoutSection } from '../core/layout-section';
 import { AccountPopover } from '../components/account-popover';
+import { SvgColor } from 'src/components/svg-color';
 
 import type { MainSectionProps } from '../core/main-section';
 import type { HeaderSectionProps } from '../core/header-section';
@@ -49,9 +50,22 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const theme = useTheme();
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, userRole } = useAuth();
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
+
+  const canManageUsers = userRole === 'super_admin' || userRole === 'admin' || userRole === 'manager';
+
+  const navigationData = canManageUsers
+    ? [
+        ...navData,
+        {
+          title: 'Users',
+          path: '/user',
+          icon: <SvgColor src="/assets/icons/navbar/ic-user.svg" />,
+        },
+      ]
+    : navData;
 
   useEffect(() => {
     if (!loading && !user) {
@@ -79,7 +93,7 @@ export function DashboardLayout({
             onClick={onOpen}
             sx={{ mr: 1, ml: -1, [theme.breakpoints.up(layoutQuery)]: { display: 'none' } }}
           />
-          <NavMobile data={navData} open={open} onClose={onClose} workspaces={_workspaces} />
+          <NavMobile data={navigationData} open={open} onClose={onClose} workspaces={_workspaces} />
         </>
       ),
       rightArea: (
@@ -120,7 +134,7 @@ export function DashboardLayout({
        * @Sidebar
        *************************************** */
       sidebarSection={
-        <NavDesktop data={navData} layoutQuery={layoutQuery} workspaces={_workspaces} />
+        <NavDesktop data={navigationData} layoutQuery={layoutQuery} workspaces={_workspaces} />
       }
       /** **************************************
        * @Footer
