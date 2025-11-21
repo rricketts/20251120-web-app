@@ -1,6 +1,6 @@
 import type { Breakpoint } from '@mui/material/styles';
 
-import { useEffect } from 'react';
+import { useMemo, useEffect } from 'react';
 import { merge } from 'es-toolkit';
 import { useBoolean } from 'minimal-shared/hooks';
 
@@ -54,20 +54,25 @@ export function DashboardLayout({
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-  const canManageUsers = ['super_admin', 'admin', 'manager'].includes(userRole);
+  const navigationData = useMemo(() => {
+    const canManageUsers = ['super_admin', 'admin', 'manager'].includes(userRole);
 
-  const navigationData = canManageUsers
-    ? [
-        ...navData,
-        {
-          title: 'Users',
-          path: '/user',
-          icon: <SvgColor src="/assets/icons/navbar/ic-user.svg" />,
-        },
-      ]
-    : navData;
+    console.log('Dashboard Layout - userRole:', userRole, 'canManageUsers:', canManageUsers);
 
-  console.log('Dashboard Layout - userRole:', userRole, 'canManageUsers:', canManageUsers, 'navigationData:', navigationData);
+    const data = canManageUsers
+      ? [
+          ...navData,
+          {
+            title: 'Users',
+            path: '/user',
+            icon: <SvgColor src="/assets/icons/navbar/ic-user.svg" />,
+          },
+        ]
+      : navData;
+
+    console.log('Dashboard Layout - navigationData:', data);
+    return data;
+  }, [userRole]);
 
   useEffect(() => {
     if (!loading && !user) {
