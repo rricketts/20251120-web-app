@@ -21,6 +21,7 @@ export type UserProps = {
   email: string;
   role: string;
   status: string;
+  isActive?: boolean;
   lastLoginAt?: string;
 };
 

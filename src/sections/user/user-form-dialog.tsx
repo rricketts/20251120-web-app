@@ -53,6 +53,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     passwordConfirm: '',
     role: 'viewer',
     status: 'active',
+    isActive: true,
   });
 
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
@@ -115,6 +116,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         passwordConfirm: '',
         role: editUser.role,
         status: editUser.status,
+        isActive: editUser.isActive !== undefined ? editUser.isActive : true,
       });
     } else {
       setFormData({
@@ -124,6 +126,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         passwordConfirm: '',
         role: defaultRole,
         status: 'active',
+        isActive: true,
       });
     }
   }, [editUser, open, currentUserRole, isManagerRole]);
@@ -181,6 +184,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
             name: formData.name,
             role: formData.role,
             status: formData.status,
+            is_active: formData.isActive,
           })
           .eq('id', editUser.id);
 
@@ -281,6 +285,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               email: formData.email,
               role: formData.role,
               status: formData.status,
+              is_active: formData.isActive,
               created_by: currentUser?.id,
             },
           ]);
@@ -309,6 +314,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         passwordConfirm: '',
         role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'viewer',
         status: 'active',
+        isActive: true,
       });
       setSelectedProjects([]);
 
@@ -446,6 +452,17 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
                 </Select>
               </FormControl>
             )}
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                  disabled={loading}
+                />
+              }
+              label="Active"
+            />
 
             {error && (
               <Box sx={{ color: 'error.main', fontSize: '0.875rem' }}>

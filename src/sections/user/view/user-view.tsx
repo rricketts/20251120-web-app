@@ -39,6 +39,7 @@ function convertUserToUserProps(user: User): UserProps {
     role: user.role,
     lastLoginAt: user.last_login_at,
     status: user.status,
+    isActive: user.is_active,
   };
 }
 
