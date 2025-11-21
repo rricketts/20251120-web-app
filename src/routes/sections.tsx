@@ -70,7 +70,7 @@ export const routesSection: RouteObject[] = [
     ],
   },
   {
-    path: 'login',
+    path: 'sign-in',
     element: (
       <AuthLayout>
         <SignInPage />
