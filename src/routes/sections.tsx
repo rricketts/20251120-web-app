@@ -15,6 +15,7 @@ import { ProtectedRoute } from 'src/routes/components';
 
 export const DashboardPage = lazy(() => import('src/pages/dashboard'));
 export const KeywordsPage = lazy(() => import('src/pages/keywords'));
+export const CompetitorsPage = lazy(() => import('src/pages/competitors'));
 export const UserPage = lazy(() => import('src/pages/user'));
 export const SignInPage = lazy(() => import('src/pages/sign-in'));
 export const ProjectsPage = lazy(() => import('src/pages/projects'));
@@ -58,6 +59,7 @@ export const routesSection: RouteObject[] = [
     children: [
       { index: true, element: <DashboardPage /> },
       { path: 'keywords', element: <KeywordsPage /> },
+      { path: 'competitors', element: <CompetitorsPage /> },
       { path: 'user', element: <UserPage /> },
       { path: 'user/projects', element: <ProjectsPage /> },
       { path: 'integrations', element: <IntegrationsPage /> },
