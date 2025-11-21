@@ -23,7 +23,9 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { generateAuthUrl, fetchSearchConsoleSites, fetchSearchAnalytics, refreshAccessToken } from 'src/lib/googleAuth';
 
 import { Iconify } from 'src/components/iconify';
-import { ConfigModal } from 'src/sections/integrations/components/ConfigModal';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
 
 interface Site {
   siteUrl: string;
@@ -39,9 +41,6 @@ interface AnalyticsRow {
 }
 
 export function GoogleSearchConsoleConfig() {
-  const [clientId, setClientId] = useState('');
-  const [clientSecret, setClientSecret] = useState('');
-  const [showConfigModal, setShowConfigModal] = useState(false);
   const [connection, setConnection] = useState<OAuthConnection | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   const [selectedSite, setSelectedSite] = useState<string>('');
@@ -52,7 +51,6 @@ export function GoogleSearchConsoleConfig() {
   const [isConnecting, setIsConnecting] = useState(false);
 
   useEffect(() => {
-    loadConfig();
     loadConnection();
 
     const handleMessage = (event: MessageEvent) => {
@@ -86,15 +84,6 @@ export function GoogleSearchConsoleConfig() {
     }
   }, [selectedSite]);
 
-  const loadConfig = () => {
-    const storedClientId = localStorage.getItem('gsc_client_id');
-    const storedClientSecret = localStorage.getItem('gsc_client_secret');
-
-    if (storedClientId && storedClientSecret) {
-      setClientId(storedClientId);
-      setClientSecret(storedClientSecret);
-    }
-  };
 
   const loadConnection = async () => {
     try {
@@ -170,13 +159,13 @@ export function GoogleSearchConsoleConfig() {
   };
 
   const handleTokenRefresh = async () => {
-    if (!connection?.refresh_token || !clientId || !clientSecret) {
+    if (!connection?.refresh_token) {
       setError('No refresh token available. Please reconnect.');
       return;
     }
 
     try {
-      const newAccessToken = await refreshAccessToken(connection.refresh_token, clientId, clientSecret);
+      const newAccessToken = await refreshAccessToken(connection.refresh_token, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
 
       const { error: updateError } = await supabase
         .from('oauth_connections')
@@ -192,25 +181,13 @@ export function GoogleSearchConsoleConfig() {
     }
   };
 
-  const handleSaveConfig = (newClientId: string, newClientSecret: string) => {
-    localStorage.setItem('gsc_client_id', newClientId);
-    localStorage.setItem('gsc_client_secret', newClientSecret);
-    setClientId(newClientId);
-    setClientSecret(newClientSecret);
-  };
 
   const handleConnect = () => {
-    if (!clientId || !clientSecret) {
-      setError('Please configure OAuth credentials first');
-      setShowConfigModal(true);
-      return;
-    }
-
     setIsConnecting(true);
     const state = crypto.randomUUID();
     localStorage.setItem('oauth_state', state);
 
-    const authUrl = generateAuthUrl(clientId, state);
+    const authUrl = generateAuthUrl(GOOGLE_CLIENT_ID, state);
     window.open(authUrl, '_blank', 'width=600,height=700');
   };
 
@@ -262,18 +239,7 @@ export function GoogleSearchConsoleConfig() {
   return (
     <DashboardContent maxWidth="xl">
       <Stack spacing={3}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Typography variant="h4">Google Search Console</Typography>
-          {!connection && (
-            <Button
-              variant="outlined"
-              startIcon={<Iconify icon="solar:settings-bold-duotone" />}
-              onClick={() => setShowConfigModal(true)}
-            >
-              Configure
-            </Button>
-          )}
-        </Stack>
+        <Typography variant="h4">Google Search Console</Typography>
 
         {error && (
           <Alert severity="error" onClose={() => setError('')}>
@@ -296,15 +262,10 @@ export function GoogleSearchConsoleConfig() {
                   size="large"
                   startIcon={<Iconify icon="solar:link-bold" />}
                   onClick={handleConnect}
-                  disabled={isConnecting || !clientId || !clientSecret}
+                  disabled={isConnecting}
                 >
                   {isConnecting ? 'Connecting...' : 'Connect with Google'}
                 </Button>
-                {(!clientId || !clientSecret) && (
-                  <Typography variant="caption" color="error">
-                    Please configure OAuth credentials first
-                  </Typography>
-                )}
               </Stack>
             </CardContent>
           </Card>
@@ -312,23 +273,14 @@ export function GoogleSearchConsoleConfig() {
           <>
             <Stack direction="row" alignItems="center" justifyContent="space-between">
               <Typography variant="h6">Connected</Typography>
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant="outlined"
-                  startIcon={<Iconify icon="solar:settings-bold-duotone" />}
-                  onClick={() => setShowConfigModal(true)}
-                >
-                  Configure
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<Iconify icon="solar:link-broken-bold" />}
-                  onClick={handleDisconnect}
-                >
-                  Disconnect
-                </Button>
-              </Stack>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<Iconify icon="solar:link-broken-bold" />}
+                onClick={handleDisconnect}
+              >
+                Disconnect
+              </Button>
             </Stack>
 
             {sites.length > 0 && (
@@ -519,14 +471,6 @@ export function GoogleSearchConsoleConfig() {
           </>
         )}
       </Stack>
-
-      <ConfigModal
-        isOpen={showConfigModal}
-        onClose={() => setShowConfigModal(false)}
-        onSave={handleSaveConfig}
-        initialClientId={clientId}
-        initialClientSecret={clientSecret}
-      />
     </DashboardContent>
   );
 }

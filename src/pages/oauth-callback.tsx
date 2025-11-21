@@ -8,6 +8,9 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { supabase } from 'src/lib/supabase';
 import { exchangeCodeForTokens } from 'src/lib/googleAuth';
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
+
 export default function OAuthCallbackPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'processing' | 'error' | 'success'>('processing');
@@ -71,14 +74,7 @@ export default function OAuthCallbackPage() {
 
         localStorage.removeItem('oauth_state');
 
-        const clientId = localStorage.getItem('gsc_client_id');
-        const clientSecret = localStorage.getItem('gsc_client_secret');
-
-        if (!clientId || !clientSecret) {
-          throw new Error('OAuth credentials not found. Please configure them first.');
-        }
-
-        const tokens = await exchangeCodeForTokens(code, clientId, clientSecret);
+        const tokens = await exchangeCodeForTokens(code, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
 
         const {
           data: { user },
