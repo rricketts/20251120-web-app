@@ -75,13 +75,20 @@ export const routesSection: RouteObject[] = [
     path: 'login',
     element: (
       <AuthLayout>
-        <LoginPage />
+        <Suspense fallback={renderFallback()}>
+          <LoginPage />
+        </Suspense>
       </AuthLayout>
     ),
   },
   {
     path: 'logout',
-    element: <LogoutPage />,
+    element: (
+      <Suspense fallback={renderFallback()}>
+        <LogoutPage />
+      </Suspense>
+    ),
   },
-  { path: '*', element: <Navigate to="/" replace /> },
+  { path: '404', element: <Suspense fallback={renderFallback()}><Page404 /></Suspense> },
+  { path: '*', element: <Navigate to="/404" replace /> },
 ];
