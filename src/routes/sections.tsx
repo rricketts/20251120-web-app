@@ -22,6 +22,7 @@ export const UserPage = lazy(() => import('src/pages/user'));
 export const LoginPage = lazy(() => import('src/pages/login'));
 export const ProjectsPage = lazy(() => import('src/pages/projects'));
 export const IntegrationsPage = lazy(() => import('src/pages/integrations'));
+export const GoogleSearchConsolePage = lazy(() => import('src/pages/integrations-google-search-console'));
 export const ProfilePage = lazy(() => import('src/pages/profile'));
 export const LogoutPage = lazy(() => import('src/pages/logout'));
 export const Page404 = lazy(() => import('src/pages/page-not-found'));
@@ -66,6 +67,7 @@ export const routesSection: RouteObject[] = [
       { path: 'user', element: <UserPage /> },
       { path: 'user/projects', element: <ProjectsPage /> },
       { path: 'integrations', element: <IntegrationsPage /> },
+      { path: 'integrations/google-search-console', element: <GoogleSearchConsolePage /> },
       { path: 'profile', element: <ProfilePage /> },
     ],
   },

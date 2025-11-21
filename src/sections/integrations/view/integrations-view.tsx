@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -22,9 +23,11 @@ type Integration = {
   icon: string;
   connected: boolean;
   comingSoon?: boolean;
+  configPath?: string;
 };
 
 export function IntegrationsView() {
+  const navigate = useNavigate();
   const [integrations, setIntegrations] = useState<Integration[]>([
     {
       id: 'google-analytics',
@@ -39,6 +42,7 @@ export function IntegrationsView() {
       description: 'Monitor and optimize your site\'s search performance',
       icon: 'logos:google-icon',
       connected: false,
+      configPath: '/integrations/google-search-console',
     },
     {
       id: 'shopify',
@@ -151,7 +155,7 @@ export function IntegrationsView() {
                     <Button
                       variant="outlined"
                       size="small"
-                      disabled={!integration.connected}
+                      onClick={() => integration.configPath && navigate(integration.configPath)}
                     >
                       Configure
                     </Button>
