@@ -78,35 +78,48 @@ export function GoogleSearchConsoleConfig() {
   useEffect(() => {
     console.log('[GSC UseEffect] Main useEffect triggered');
     const handleInit = async () => {
+      console.log('[GSC UseEffect] ========== HANDLE INIT START ==========');
       console.log('[GSC UseEffect] handleInit starting');
+      console.log('[GSC UseEffect] Full URL:', window.location.href);
+      console.log('[GSC UseEffect] Has window.opener?', !!window.opener);
       addDebugLog('Component mounted');
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
       const errorParam = params.get('error');
       const state = params.get('state');
 
-      console.log('[GSC UseEffect] Parsed URL params - code:', code?.substring(0, 20) + '...', 'error:', errorParam);
+      console.log('[GSC UseEffect] URL search params:', window.location.search);
+      console.log('[GSC UseEffect] Parsed code:', code ? `${code.substring(0, 20)}...` : 'none');
+      console.log('[GSC UseEffect] Parsed error:', errorParam || 'none');
+      console.log('[GSC UseEffect] Parsed state:', state || 'none');
       addDebugLog(`URL params - code: ${code ? 'present' : 'none'}, error: ${errorParam || 'none'}`);
 
       if (code || errorParam) {
-        if (window.opener && !window.opener.closed) {
-          console.log('[GSC UseEffect] This is OAuth popup, sending message to parent');
-          console.log('[GSC UseEffect] window.opener exists:', !!window.opener);
+        console.log('[GSC UseEffect] ========== OAUTH CALLBACK DETECTED ==========');
+        console.log('[GSC UseEffect] Checking if this is a popup window...');
+        console.log('[GSC UseEffect] window.opener:', window.opener);
+        console.log('[GSC UseEffect] window.opener truthy?', !!window.opener);
+
+        if (window.opener) {
           console.log('[GSC UseEffect] window.opener.closed:', window.opener.closed);
-          console.log('[GSC UseEffect] Sending message with code:', code ? 'present' : 'none');
+        }
+
+        if (window.opener && !window.opener.closed) {
+          console.log('[GSC UseEffect] ✓ This IS a popup window - sending message to parent');
           addDebugLog('Detected OAuth popup, sending result to parent window');
 
           try {
-            window.opener.postMessage(
-              {
-                type: 'GOOGLE_OAUTH_RESULT',
-                code,
-                error: errorParam,
-                state,
-              },
-              window.location.origin
-            );
-            console.log('[GSC UseEffect] Message sent successfully');
+            const message = {
+              type: 'GOOGLE_OAUTH_RESULT',
+              code,
+              error: errorParam,
+              state,
+            };
+            console.log('[GSC UseEffect] Message to send:', message);
+            console.log('[GSC UseEffect] Target origin:', window.location.origin);
+
+            window.opener.postMessage(message, window.location.origin);
+            console.log('[GSC UseEffect] ✓ Message sent successfully');
             addDebugLog('Message sent to parent window successfully');
 
             setTimeout(() => {
@@ -114,14 +127,13 @@ export function GoogleSearchConsoleConfig() {
               window.close();
             }, 100);
           } catch (err) {
-            console.error('[GSC UseEffect] Error sending message:', err);
+            console.error('[GSC UseEffect] ✗ Error sending message:', err);
             addDebugLog(`Error sending message to parent: ${err}`);
           }
           return;
         } else {
-          console.log('[GSC UseEffect] This is NOT a popup window');
-          console.log('[GSC UseEffect] window.opener:', window.opener);
-          console.log('[GSC UseEffect] Is popup closed?', window.opener?.closed);
+          console.log('[GSC UseEffect] ✗ This is NOT a popup window (or opener is closed)');
+          console.log('[GSC UseEffect] Will process OAuth in main window');
           addDebugLog('Not a popup window, processing locally');
         }
 
@@ -164,18 +176,16 @@ export function GoogleSearchConsoleConfig() {
     });
 
     const handleMessage = async (event: MessageEvent) => {
-      console.log('[GSC Message] Received message event');
-      console.log('[GSC Message] Event origin:', event.origin);
-      console.log('[GSC Message] Window origin:', window.location.origin);
-      console.log('[GSC Message] Event data:', event.data);
-
       if (event.origin !== window.location.origin) {
-        console.log('[GSC Message] Ignoring message from different origin:', event.origin);
-        addDebugLog(`Ignoring message from different origin: ${event.origin}`);
+        return;
+      }
+
+      if (!event.data || typeof event.data !== 'object') {
         return;
       }
 
       if (event.data.type === 'GOOGLE_OAUTH_RESULT') {
+        console.log('[GSC Message] ========== OAUTH MESSAGE RECEIVED ==========');
         console.log('[GSC Message] Received OAuth result from popup');
         addDebugLog('Received OAuth result from popup window');
         addDebugLog(`OAuth data: code=${event.data.code ? 'present' : 'none'}, error=${event.data.error || 'none'}`);
@@ -206,8 +216,6 @@ export function GoogleSearchConsoleConfig() {
           addDebugLog('Processing OAuth code from popup');
           await handleOAuthCallback(code);
         }
-      } else {
-        console.log('[GSC Message] Message type not recognized:', event.data.type);
       }
     };
 
