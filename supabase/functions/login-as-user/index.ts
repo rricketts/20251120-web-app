@@ -17,7 +17,7 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
@@ -53,7 +53,7 @@ Deno.serve(async (req: Request) => {
       .from('users')
       .select('role')
       .eq('id', currentUser.id)
-      .single();
+      .maybeSingle();
 
     if (!currentUserData || !['super_admin', 'admin', 'manager'].includes(currentUserData.role)) {
       return new Response(
@@ -81,7 +81,7 @@ Deno.serve(async (req: Request) => {
       .from('users')
       .select('role, created_by')
       .eq('id', targetUserId)
-      .single();
+      .maybeSingle();
 
     if (!targetUserData) {
       return new Response(
@@ -124,11 +124,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data: targetUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(targetUserId);
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: (await supabaseAdmin.auth.admin.getUserById(targetUserId)).data.user?.email || '',
+    });
 
-    if (getUserError || !targetUser.user) {
+    if (linkError || !linkData || !linkData.properties) {
+      console.error('Generate link error:', linkError);
       return new Response(
-        JSON.stringify({ error: 'Failed to get target user' }),
+        JSON.stringify({ error: 'Failed to generate auth tokens' }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -136,11 +140,24 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
-      userId: targetUserId,
+    const hashedToken = linkData.properties.hashed_token;
+    if (!hashedToken) {
+      return new Response(
+        JSON.stringify({ error: 'No hashed token in response' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const { data: verifyData, error: verifyError } = await supabaseAdmin.auth.verifyOtp({
+      token_hash: hashedToken,
+      type: 'magiclink',
     });
 
-    if (sessionError || !sessionData) {
+    if (verifyError || !verifyData?.session) {
+      console.error('Verify OTP error:', verifyError);
       return new Response(
         JSON.stringify({ error: 'Failed to create session' }),
         {
@@ -152,8 +169,8 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({
-        accessToken: sessionData.session.access_token,
-        refreshToken: sessionData.session.refresh_token,
+        accessToken: verifyData.session.access_token,
+        refreshToken: verifyData.session.refresh_token,
         success: true
       }),
       {
@@ -164,7 +181,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('Error in login-as-user function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', message: String(error) }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
