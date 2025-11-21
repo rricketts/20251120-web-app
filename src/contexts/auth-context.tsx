@@ -38,29 +38,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const initAuth = async () => {
-      console.log('Auth Context - initAuth - starting...');
       const { data: { session: currentSession } } = await supabase.auth.getSession();
-      console.log('Auth Context - initAuth - session:', currentSession);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
 
       if (currentSession?.user?.email) {
-        console.log('Auth Context - initAuth - fetching user data for:', currentSession.user.email);
         const data = await getUserDataByEmail(currentSession.user.email);
-        console.log('Auth Context - initAuth - userData:', data, 'role:', data?.role);
         setUserData(data);
         setUserRole(data?.role || 'viewer');
-        console.log('Auth Context - initAuth - set userRole to:', data?.role || 'viewer');
 
         if (currentSession.user.id) {
           await updateLastLogin(currentSession.user.id);
         }
-      } else {
-        console.log('Auth Context - initAuth - no user email, setting role to viewer');
       }
 
       setLoading(false);
-      console.log('Auth Context - initAuth - complete');
     };
 
     initAuth();
@@ -68,29 +60,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      console.log('Auth Context - onAuthStateChange - event:', event);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
 
       if (currentSession?.user?.email) {
-        console.log('Auth Context - onAuthStateChange - fetching user data for:', currentSession.user.email);
         const data = await getUserDataByEmail(currentSession.user.email);
-        console.log('Auth Context - onAuthStateChange - userData:', data, 'role:', data?.role);
         setUserData(data);
         setUserRole(data?.role || 'viewer');
-        console.log('Auth Context - onAuthStateChange - set userRole to:', data?.role || 'viewer');
 
         if (event === 'SIGNED_IN' && currentSession.user.id) {
           await updateLastLogin(currentSession.user.id);
         }
       } else {
-        console.log('Auth Context - onAuthStateChange - no user email, setting role to viewer');
         setUserRole('viewer');
         setUserData(null);
       }
 
       setLoading(false);
-      console.log('Auth Context - onAuthStateChange - setLoading(false)');
     });
 
     return () => subscription.unsubscribe();
