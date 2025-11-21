@@ -28,12 +28,10 @@ export default function OAuthCallbackPage() {
           throw new Error('No authorization code received');
         }
 
-        let savedState = localStorage.getItem('oauth_state');
-        console.log('Callback localStorage state:', savedState);
-        console.log('URL state parameter:', state);
+        let savedState: string | null = null;
 
-        if (!savedState && window.opener) {
-          console.log('Requesting state from parent window...');
+        if (window.opener) {
+          console.log('Popup mode: Requesting state from parent window...');
           savedState = await new Promise<string | null>((resolve) => {
             const handleMessage = (event: MessageEvent) => {
               console.log('Callback received message:', event.data);
@@ -49,7 +47,10 @@ export default function OAuthCallbackPage() {
             };
 
             window.addEventListener('message', handleMessage);
-            window.opener.postMessage({ type: 'oauth_request_state' }, window.location.origin);
+
+            setTimeout(() => {
+              window.opener.postMessage({ type: 'oauth_request_state' }, window.location.origin);
+            }, 100);
 
             setTimeout(() => {
               console.log('Timeout waiting for parent state');
@@ -57,18 +58,21 @@ export default function OAuthCallbackPage() {
               resolve(null);
             }, 5000);
           });
+        } else {
+          console.log('Direct navigation mode: Using localStorage');
+          savedState = localStorage.getItem('oauth_state');
+          localStorage.removeItem('oauth_state');
         }
 
         console.log('Final saved state:', savedState);
+        console.log('URL state parameter:', state);
         console.log('State match:', state === savedState);
 
-        if (state !== savedState) {
+        if (!savedState || state !== savedState) {
           throw new Error(
             `Invalid state parameter - possible CSRF attack (expected: ${savedState}, got: ${state})`
           );
         }
-
-        localStorage.removeItem('oauth_state');
 
         const {
           data: { session },
