@@ -36,7 +36,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
   const projects = rawProjects.map((project) => ({
     id: project.id,
     name: project.name,
-    logo: project.logo_url || `/assets/icons/workspaces/logo-1.webp`,
+    logo: project.logo_url,
     plan: project.plan,
   }));
 
@@ -44,7 +44,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
     ? {
         id: selectedProject.id,
         name: selectedProject.name,
-        logo: selectedProject.logo_url || `/assets/icons/workspaces/logo-1.webp`,
+        logo: selectedProject.logo_url,
         plan: selectedProject.plan,
       }
     : null;
@@ -73,9 +73,38 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
     router.push('/user/projects');
   }, [handleClosePopover, router]);
 
-  const renderAvatar = (alt: string, src: string) => (
-    <Box component="img" alt={alt} src={src} sx={{ width: 24, height: 24, borderRadius: '50%' }} />
-  );
+  const getDefaultColor = (name: string) => {
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7B731', '#5F27CD', '#00D2D3', '#FF9FF3', '#54A0FF'];
+    const index = name.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
+
+  const renderAvatar = (name: string, logoUrl?: string | null) => {
+    if (logoUrl) {
+      return (
+        <Box component="img" alt={name} src={logoUrl} sx={{ width: 24, height: 24, borderRadius: '50%' }} />
+      );
+    }
+
+    return (
+      <Box
+        sx={{
+          width: 24,
+          height: 24,
+          borderRadius: '50%',
+          bgcolor: getDefaultColor(name),
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          fontSize: 12,
+          fontWeight: 600,
+        }}
+      >
+        {name.charAt(0).toUpperCase()}
+      </Box>
+    );
+  };
 
   const renderLabel = (plan: string) => (
     <Label color={plan === 'Free' ? 'default' : 'info'}>{plan}</Label>
@@ -136,7 +165,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
         }}
         {...other}
       >
-        {renderAvatar(workspace?.name || '', workspace?.logo || '')}
+        {renderAvatar(workspace?.name || '', workspace?.logo)}
 
         <Box
           sx={{
