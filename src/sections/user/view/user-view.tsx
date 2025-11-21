@@ -64,9 +64,11 @@ export function UserView() {
 
       let query = supabase.from('users').select('*');
 
+      // Admins can see all users, managers only see users they created
       if (userRole === 'manager') {
         query = query.eq('created_by', currentUser.id);
       }
+      // Admin role: no filter applied, sees all users
 
       const { data, error } = await query.order('created_at', { ascending: false });
 
