@@ -141,26 +141,12 @@ export function UserView() {
   if (!canManageUsers) {
     return (
       <DashboardContent>
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '60vh',
-            textAlign: 'center',
-          }}
-        >
-          <Iconify
-            icon="solar:lock-password-bold-duotone"
-            width={120}
-            sx={{ mb: 3, color: 'text.disabled' }}
-          />
-          <Typography variant="h3" sx={{ mb: 2 }}>
+        <Box sx={{ textAlign: 'center', py: 10 }}>
+          <Typography variant="h4" sx={{ mb: 2 }}>
             Access Denied
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 480 }}>
-            You do not have permission to access this section. Only administrators and managers can view and manage users.
+          <Typography variant="body1" color="text.secondary">
+            You do not have permission to access this section.
           </Typography>
         </Box>
       </DashboardContent>
