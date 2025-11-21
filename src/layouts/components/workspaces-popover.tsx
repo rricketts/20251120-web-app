@@ -48,9 +48,9 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
     [handleClosePopover]
   );
 
-  const handleManageTeams = useCallback(() => {
+  const handleManageProjects = useCallback(() => {
     handleClosePopover();
-    router.push('/teams');
+    router.push('/user/projects');
   }, [handleClosePopover, router]);
 
   const renderAvatar = (alt: string, src: string) => (
@@ -137,10 +137,10 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
 
           <Divider sx={{ my: 0.5 }} />
 
-          <MenuItem onClick={handleManageTeams}>
+          <MenuItem onClick={handleManageProjects}>
             <Iconify icon="solar:settings-bold-duotone" width={24} />
             <Box component="span" sx={{ flexGrow: 1 }}>
-              Manage teams
+              Manage projects
             </Box>
           </MenuItem>
         </MenuList>
