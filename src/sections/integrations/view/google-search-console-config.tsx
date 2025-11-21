@@ -7,1152 +7,526 @@ import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
 import CardContent from '@mui/material/CardContent';
 import FormControl from '@mui/material/FormControl';
+import CircularProgress from '@mui/material/CircularProgress';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 
-import { supabase } from 'src/lib/supabase';
-import { useProject } from 'src/contexts/project-context';
+import { supabase, type OAuthConnection } from 'src/lib/supabase';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { generateAuthUrl, fetchSearchConsoleSites, fetchSearchAnalytics, refreshAccessToken } from 'src/lib/googleAuth';
 
 import { Iconify } from 'src/components/iconify';
+import { ConfigModal } from 'src/sections/integrations/components/ConfigModal';
 
-type PropertyType = {
-  url: string;
+interface Site {
+  siteUrl: string;
   permissionLevel: string;
-};
+}
 
-const OAUTH_CONFIG = {
-  clientId: '530759122152-hoc2fmn25t2b0jjvhg1ikoi5afcnbgdr.apps.googleusercontent.com',
-  redirectUri: `${window.location.origin}/integrations/google-search-console`,
-  scope: 'https://www.googleapis.com/auth/webmasters.readonly',
-  authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-};
+interface AnalyticsRow {
+  keys: string[];
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
 
 export function GoogleSearchConsoleConfig() {
-  console.log('='.repeat(80));
-  console.log('[GSC Init] GoogleSearchConsoleConfig component is initializing');
-  console.log('[GSC Init] Current URL:', window.location.href);
-  console.log('[GSC Init] URL pathname:', window.location.pathname);
-  console.log('[GSC Init] URL search:', window.location.search);
-  console.log('[GSC Init] URL hash:', window.location.hash);
-  console.log('='.repeat(80));
-
-  const { selectedProject } = useProject();
-  console.log('[GSC Init] Selected project:', selectedProject);
-
-  const [selectedProperty, setSelectedProperty] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [connection, setConnection] = useState<OAuthConnection | null>(null);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [selectedSite, setSelectedSite] = useState<string>('');
+  const [analytics, setAnalytics] = useState<AnalyticsRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>('');
+  const [refreshing, setRefreshing] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [properties, setProperties] = useState<PropertyType[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [debugLog, setDebugLog] = useState<string[]>([]);
-  const [testResults, setTestResults] = useState<any>(null);
-  const [isTestLoading, setIsTestLoading] = useState(false);
-  const [showDebugPanel, setShowDebugPanel] = useState(true);
-  const [networkLogs, setNetworkLogs] = useState<Array<{timestamp: string, type: string, message: string}>>([]);
-
-  console.log('[GSC Init] Initial state set - isLoading:', true, 'isConnecting:', false);
-
-  const addDebugLog = (message: string) => {
-    const logMessage = `${new Date().toISOString()}: ${message}`;
-    console.log(`[GSC Debug] ${logMessage}`);
-    setDebugLog(prev => [...prev, logMessage]);
-  };
-
-  const addNetworkLog = (type: string, message: string) => {
-    const timestamp = new Date().toISOString();
-    console.log(`[GSC Network] [${type}] ${message}`);
-    setNetworkLogs(prev => [...prev, { timestamp, type, message }]);
-  };
 
   useEffect(() => {
-    addDebugLog(`State Update - isLoading: ${isLoading}, isConnecting: ${isConnecting}, isConnected: ${isConnected}, properties: ${properties.length}, accessToken: ${accessToken ? 'present' : 'null'}`);
-  }, [isLoading, isConnecting, isConnected, properties, accessToken]);
+    loadConfig();
+    loadConnection();
 
-  useEffect(() => {
-    console.log('[GSC UseEffect] Main useEffect triggered');
-    const handleInit = async () => {
-      console.log('[GSC UseEffect] ========== HANDLE INIT START ==========');
-      console.log('[GSC UseEffect] handleInit starting');
-      console.log('[GSC UseEffect] Full URL:', window.location.href);
-      console.log('[GSC UseEffect] Has window.opener?', !!window.opener);
-      addDebugLog('Component mounted');
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get('code');
-      const errorParam = params.get('error');
-      const state = params.get('state');
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
 
-      console.log('[GSC UseEffect] URL search params:', window.location.search);
-      console.log('[GSC UseEffect] Parsed code:', code ? `${code.substring(0, 20)}...` : 'none');
-      console.log('[GSC UseEffect] Parsed error:', errorParam || 'none');
-      console.log('[GSC UseEffect] Parsed state:', state || 'none');
-      addDebugLog(`URL params - code: ${code ? 'present' : 'none'}, error: ${errorParam || 'none'}`);
-
-      if (code || errorParam) {
-        console.log('[GSC UseEffect] ========== OAUTH CALLBACK DETECTED ==========');
-        console.log('[GSC UseEffect] Checking if this is a popup window...');
-        console.log('[GSC UseEffect] window.opener:', window.opener);
-        console.log('[GSC UseEffect] window.opener truthy?', !!window.opener);
-
-        if (window.opener) {
-          console.log('[GSC UseEffect] window.opener.closed:', window.opener.closed);
-        }
-
-        const isPopup = window.opener && window.name === 'google-oauth';
-        console.log('[GSC UseEffect] Is popup?', isPopup);
-        console.log('[GSC UseEffect] window.name:', window.name);
-
-        if (isPopup) {
-          console.log('[GSC UseEffect] ✓ This IS a popup window - communicating with parent');
-          addDebugLog('Detected OAuth popup, communicating result to parent');
-
-          try {
-            const oauthResult = {
-              code,
-              error: errorParam,
-              state,
-              timestamp: Date.now(),
-            };
-            console.log('[GSC UseEffect] OAuth result to save:', oauthResult);
-
-            localStorage.setItem('gsc_oauth_result', JSON.stringify(oauthResult));
-            console.log('[GSC UseEffect] ✓ Saved OAuth result to localStorage');
-            addDebugLog('Saved OAuth result to localStorage');
-
-            if (window.opener && !window.opener.closed) {
-              console.log('[GSC UseEffect] Trying postMessage as well...');
-              window.opener.postMessage(
-                {
-                  type: 'GOOGLE_OAUTH_RESULT',
-                  code,
-                  error: errorParam,
-                  state,
-                },
-                window.location.origin
-              );
-              console.log('[GSC UseEffect] ✓ postMessage sent');
-            }
-
-            setTimeout(() => {
-              console.log('[GSC UseEffect] Closing popup after 200ms delay');
-              window.close();
-            }, 200);
-          } catch (err) {
-            console.error('[GSC UseEffect] ✗ Error communicating with parent:', err);
-            addDebugLog(`Error communicating with parent: ${err}`);
-          }
-          return;
-        } else {
-          console.log('[GSC UseEffect] ✗ This is NOT a popup window (or opener is closed)');
-          console.log('[GSC UseEffect] Will process OAuth in main window');
-          addDebugLog('Not a popup window, processing locally');
-        }
-
-        console.log('[GSC UseEffect] This is main window with OAuth result');
-      }
-
-      if (errorParam) {
-        console.log('[GSC UseEffect] Error param detected, showing error');
-        addDebugLog(`OAuth error detected: ${errorParam}`);
-        setError('Authorization was cancelled or failed');
-        setIsLoading(false);
-        window.history.replaceState({}, '', window.location.pathname);
-        return;
-      }
-
-      if (code) {
-        console.log('[GSC UseEffect] OAuth code detected, calling handleOAuthCallback');
-        addDebugLog('OAuth code detected, starting callback handler');
-        await handleOAuthCallback(code);
-        console.log('[GSC UseEffect] handleOAuthCallback completed');
-        window.history.replaceState({}, '', window.location.pathname);
-        return;
-      }
-
-      if (selectedProject) {
-        console.log('[GSC UseEffect] No code, loading existing config for project:', selectedProject.id);
-        addDebugLog(`Loading config for project: ${selectedProject.id}`);
-        await loadExistingConfig();
-        console.log('[GSC UseEffect] loadExistingConfig completed');
-      } else {
-        console.log('[GSC UseEffect] No project selected, setting isLoading to false');
-        addDebugLog('No project selected');
-        setIsLoading(false);
+      if (event.data.type === 'oauth_request_state') {
+        const savedState = localStorage.getItem('oauth_state');
+        event.source?.postMessage(
+          { type: 'oauth_state_response', state: savedState },
+          { targetOrigin: window.location.origin }
+        );
+      } else if (event.data.type === 'oauth_success') {
+        setIsConnecting(false);
+        loadConnection();
       }
     };
 
-    handleInit().catch(err => {
-      console.error('[GSC UseEffect] Error in handleInit:', err);
-      addDebugLog(`Error in handleInit: ${err.message}`);
-    });
-
-    const handleMessage = async (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) {
-        return;
-      }
-
-      if (!event.data || typeof event.data !== 'object') {
-        return;
-      }
-
-      if (event.data.type === 'GOOGLE_OAUTH_RESULT') {
-        console.log('[GSC Message] ========== OAUTH MESSAGE RECEIVED ==========');
-        console.log('[GSC Message] Received OAuth result from popup');
-        addDebugLog('Received OAuth result from popup window');
-        addDebugLog(`OAuth data: code=${event.data.code ? 'present' : 'none'}, error=${event.data.error || 'none'}`);
-
-        const { code, error, state } = event.data;
-        const savedState = sessionStorage.getItem('oauth_state');
-
-        console.log('[GSC Message] State comparison - received:', state, 'saved:', savedState);
-
-        if (state !== savedState) {
-          console.error('[GSC Message] State mismatch!');
-          addDebugLog('OAuth state mismatch - possible security issue');
-          setError('OAuth state mismatch. Please try again.');
-          setIsConnecting(false);
-          return;
-        }
-
-        if (error) {
-          console.log('[GSC Message] OAuth error:', error);
-          addDebugLog(`OAuth error: ${error}`);
-          setError('Authorization was cancelled or failed');
-          setIsConnecting(false);
-          return;
-        }
-
-        if (code) {
-          console.log('[GSC Message] Processing OAuth code from popup');
-          addDebugLog('Processing OAuth code from popup');
-          await handleOAuthCallback(code);
-        }
-      }
-    };
-
-    const handleStorageChange = async (event: StorageEvent) => {
-      if (event.key === 'gsc_oauth_result' && event.newValue) {
-        console.log('[GSC Storage] ========== OAUTH RESULT FROM LOCALSTORAGE ==========');
-        console.log('[GSC Storage] Storage event detected');
-        addDebugLog('Received OAuth result from localStorage');
-
-        try {
-          const result = JSON.parse(event.newValue);
-          console.log('[GSC Storage] Parsed result:', result);
-          addDebugLog(`OAuth data: code=${result.code ? 'present' : 'none'}, error=${result.error || 'none'}`);
-
-          const { code, error, state } = result;
-          const savedState = sessionStorage.getItem('oauth_state');
-
-          console.log('[GSC Storage] State comparison - received:', state, 'saved:', savedState);
-
-          localStorage.removeItem('gsc_oauth_result');
-          console.log('[GSC Storage] Cleared localStorage result');
-
-          if (state !== savedState) {
-            console.error('[GSC Storage] State mismatch!');
-            addDebugLog('OAuth state mismatch - possible security issue');
-            setError('OAuth state mismatch. Please try again.');
-            setIsConnecting(false);
-            return;
-          }
-
-          if (error) {
-            console.log('[GSC Storage] OAuth error:', error);
-            addDebugLog(`OAuth error: ${error}`);
-            setError('Authorization was cancelled or failed');
-            setIsConnecting(false);
-            return;
-          }
-
-          if (code) {
-            console.log('[GSC Storage] Processing OAuth code from localStorage');
-            addDebugLog('Processing OAuth code from localStorage');
-            await handleOAuthCallback(code);
-          }
-        } catch (err) {
-          console.error('[GSC Storage] Error parsing OAuth result:', err);
-          addDebugLog(`Error parsing OAuth result: ${err}`);
-        }
-      }
-    };
-
-    console.log('[GSC Message] Adding message event listener');
-    console.log('[GSC Storage] Adding storage event listener');
-    addDebugLog('Message and storage listeners registered for OAuth popup communication');
     window.addEventListener('message', handleMessage);
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      console.log('[GSC Message] Removing message event listener');
-      console.log('[GSC Storage] Removing storage event listener');
-      window.removeEventListener('message', handleMessage);
-      window.removeEventListener('storage', handleStorageChange);
-    };
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-
-    if (!code && selectedProject && !isConnecting) {
-      addDebugLog(`Project changed to: ${selectedProject.id}, reloading config`);
-      loadExistingConfig();
+    if (connection && sites.length === 0) {
+      loadSites();
     }
-  }, [selectedProject]);
+  }, [connection]);
 
-  const loadExistingConfig = async () => {
-    console.log('[GSC Load] Loading existing config for project:', selectedProject?.id);
-    if (!selectedProject) {
-      console.log('[GSC Load] No project selected, returning');
+  useEffect(() => {
+    if (selectedSite && connection) {
+      loadAnalytics();
+    }
+  }, [selectedSite]);
+
+  const loadConfig = () => {
+    const storedClientId = localStorage.getItem('gsc_client_id');
+    const storedClientSecret = localStorage.getItem('gsc_client_secret');
+
+    if (storedClientId && storedClientSecret) {
+      setClientId(storedClientId);
+      setClientSecret(storedClientSecret);
+    }
+  };
+
+  const loadConnection = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data, error: fetchError } = await supabase
+        .from('oauth_connections')
+        .select('*')
+        .eq('provider', 'google_search_console')
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+      setConnection(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load connection');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSites = async () => {
+    if (!connection) return;
+
+    try {
+      setError('');
+      const data = await fetchSearchConsoleSites(connection.access_token);
+      setSites(data.siteEntry || []);
+      if (data.siteEntry && data.siteEntry.length > 0) {
+        setSelectedSite(data.siteEntry[0].siteUrl);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message === 'TOKEN_EXPIRED') {
+        await handleTokenRefresh();
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load sites');
+      }
+    }
+  };
+
+  const loadAnalytics = async () => {
+    if (!connection || !selectedSite) return;
+
+    try {
+      setError('');
+      setRefreshing(true);
+
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 28);
+
+      const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+      const data = await fetchSearchAnalytics(
+        connection.access_token,
+        selectedSite,
+        formatDate(startDate),
+        formatDate(endDate)
+      );
+
+      setAnalytics(data.rows || []);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'TOKEN_EXPIRED') {
+        await handleTokenRefresh();
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load analytics');
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleTokenRefresh = async () => {
+    if (!connection?.refresh_token || !clientId || !clientSecret) {
+      setError('No refresh token available. Please reconnect.');
       return;
     }
 
     try {
-      console.log('[GSC Load] Fetching existing config from database');
-      addDebugLog('Fetching existing config from database');
-      const { data, error: fetchError } = await supabase
-        .from('integration_credentials')
-        .select('*')
-        .eq('project_id', selectedProject.id)
-        .eq('integration_type', 'google_search_console')
-        .eq('is_active', true)
-        .maybeSingle();
+      const newAccessToken = await refreshAccessToken(connection.refresh_token, clientId, clientSecret);
 
-      console.log('[GSC Load] Database query result:', { data, error: fetchError });
-      if (fetchError) {
-        console.error('[GSC Load] Database fetch error:', fetchError);
-        addDebugLog(`Database fetch error: ${JSON.stringify(fetchError)}`);
-        throw fetchError;
-      }
-
-      if (data) {
-        console.log('[GSC Load] RAW EXISTING CONFIG DATA:', JSON.stringify(data, null, 2));
-        addDebugLog('Existing config found, setting connected state');
-        addDebugLog(`Config data: ${JSON.stringify(data)}`);
-        console.log('[GSC Load] Setting isConnected=true');
-        setIsConnected(true);
-        console.log('[GSC Load] Setting selectedProperty:', data.selected_property);
-        setSelectedProperty(data.selected_property || '');
-        console.log('[GSC Load] Setting accessToken (length):', data.access_token?.length);
-        setAccessToken(data.access_token);
-        if (data.access_token) {
-          console.log('[GSC Load] Access token found, fetching properties');
-          addDebugLog('Access token found, fetching properties');
-          await fetchProperties(data.access_token);
-        }
-      } else {
-        console.log('[GSC Load] No existing config found');
-        addDebugLog('No existing config found');
-      }
-    } catch (err) {
-      console.error('[GSC Load] Error loading config:', err);
-      addDebugLog(`Error loading config: ${err instanceof Error ? err.message : String(err)}`);
-      console.error('Error loading config:', err);
-    } finally {
-      console.log('[GSC Load] Load config complete, setting isLoading=false');
-      addDebugLog('Load config complete');
-      setIsLoading(false);
-    }
-  };
-
-  const handleConnect = () => {
-    addDebugLog('Initiating OAuth connection');
-    const state = crypto.randomUUID();
-    sessionStorage.setItem('oauth_state', state);
-    addDebugLog(`OAuth state generated: ${state}`);
-    addDebugLog(`Redirect URI: ${OAUTH_CONFIG.redirectUri}`);
-
-    const authParams = new URLSearchParams({
-      client_id: OAUTH_CONFIG.clientId,
-      redirect_uri: OAUTH_CONFIG.redirectUri,
-      response_type: 'code',
-      scope: OAUTH_CONFIG.scope,
-      access_type: 'offline',
-      prompt: 'consent',
-      state,
-    });
-
-    const authUrl = `${OAUTH_CONFIG.authUrl}?${authParams.toString()}`;
-    addDebugLog(`Opening OAuth window: ${authUrl}`);
-
-    const width = 600;
-    const height = 700;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-
-    const popup = window.open(
-      authUrl,
-      'google-oauth',
-      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
-    );
-
-    if (popup) {
-      addDebugLog('OAuth popup opened successfully');
-      setIsConnecting(true);
-
-      const checkPopup = setInterval(() => {
-        try {
-          if (popup.closed) {
-            clearInterval(checkPopup);
-            console.log('[GSC OAuth] Popup window closed');
-            addDebugLog('OAuth popup was closed');
-
-            setTimeout(() => {
-              const urlParams = new URLSearchParams(window.location.search);
-              const code = urlParams.get('code');
-
-              if (!code && isConnecting) {
-                console.log('[GSC OAuth] No code found after popup closed');
-                addDebugLog('No OAuth code received - user may have cancelled or popup communication failed');
-                addNetworkLog('ERROR', 'No OAuth code received from popup');
-                setIsConnecting(false);
-                setError('Authorization was cancelled or did not complete. Please try again.');
-              }
-            }, 500);
-          }
-        } catch (err) {
-          console.error('[GSC OAuth] Error checking popup status:', err);
-        }
-      }, 500);
-    } else {
-      addDebugLog('Failed to open OAuth popup - popup blocked?');
-      addNetworkLog('ERROR', 'Popup blocked by browser');
-      setError('Please allow popups for this site to connect to Google Search Console');
-    }
-  };
-
-  const handleOAuthCallback = async (code: string) => {
-    console.log('[GSC OAuth] ========== STARTING OAUTH CALLBACK ==========');
-    console.log('[GSC OAuth] Code length:', code.length);
-    console.log('[GSC OAuth] Code preview:', code.substring(0, 20) + '...');
-    addDebugLog(`Starting OAuth callback with code: ${code.substring(0, 10)}...`);
-    console.log('[GSC OAuth] Setting isConnecting to true');
-    setIsConnecting(true);
-    setError(null);
-
-    try {
-      console.log('[GSC OAuth] Exchanging code for token');
-      addDebugLog('Exchanging code for token via Edge Function');
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
-      console.log('[GSC OAuth] API URL:', apiUrl);
-
-      console.log('[GSC OAuth] Making fetch request...');
-      addNetworkLog('REQUEST', `POST ${apiUrl}`);
-      addNetworkLog('PAYLOAD', `code=${code.substring(0, 20)}..., redirectUri=${OAUTH_CONFIG.redirectUri}`);
-
-      const tokenResponse = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          code,
-          redirectUri: OAUTH_CONFIG.redirectUri,
-        }),
-      });
-
-      console.log('[GSC OAuth] Token response received - status:', tokenResponse.status);
-      addDebugLog(`Token response status: ${tokenResponse.status}`);
-      addNetworkLog('RESPONSE', `Status: ${tokenResponse.status} ${tokenResponse.statusText}`);
-
-      if (!tokenResponse.ok) {
-        const errorText = await tokenResponse.text();
-        addDebugLog(`Token exchange failed: ${errorText}`);
-        addNetworkLog('ERROR', `Token exchange failed: ${errorText}`);
-        throw new Error('Failed to exchange code for token');
-      }
-
-      const tokenData = await tokenResponse.json();
-      console.log('[GSC OAuth] RAW TOKEN DATA:', JSON.stringify(tokenData, null, 2));
-      addDebugLog('Token received successfully');
-      addDebugLog(`Token data: ${JSON.stringify(tokenData)}`);
-      addDebugLog(`Token has refresh_token: ${!!tokenData.refresh_token}`);
-      addDebugLog(`Access token length: ${tokenData.access_token?.length || 0}`);
-      addDebugLog(`Refresh token length: ${tokenData.refresh_token?.length || 0}`);
-      addDebugLog(`Expires in: ${tokenData.expires_in} seconds`);
-      console.log('[GSC OAuth] Setting access token in state');
-      setAccessToken(tokenData.access_token);
-
-      console.log('[GSC OAuth] Fetching properties with new token');
-      addDebugLog('Fetching properties with new token');
-      await fetchProperties(tokenData.access_token);
-
-      console.log('[GSC OAuth] Getting user data from Supabase');
-      addDebugLog('Getting user data');
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      console.log('[GSC OAuth] User data result:', { user: userData?.user?.id, error: userError });
-      if (!userData.user) {
-        addDebugLog('No user found in session');
-        throw new Error('User not found');
-      }
-      if (!selectedProject) {
-        addDebugLog('No project selected');
-        throw new Error('Project not found');
-      }
-      console.log('[GSC OAuth] User ID:', userData.user.id, 'Project ID:', selectedProject.id);
-      addDebugLog(`User ID: ${userData.user.id}, Project ID: ${selectedProject.id}`);
-
-      const credentialsToSave = {
-        project_id: selectedProject.id,
-        integration_type: 'google_search_console',
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        token_expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-        is_active: true,
-        created_by: userData.user.id,
-      };
-      console.log('[GSC OAuth] Credentials to save:', JSON.stringify(credentialsToSave, null, 2));
-      addDebugLog('Saving credentials to database');
-      addDebugLog(`Credentials payload: ${JSON.stringify(credentialsToSave)}`);
-      addNetworkLog('DATABASE', 'UPSERT integration_credentials');
-      addNetworkLog('DB_PAYLOAD', `project_id: ${selectedProject.id}, type: google_search_console`);
-
-      const { data: saveData, error: saveError } = await supabase
-        .from('integration_credentials')
-        .upsert(credentialsToSave, {
-          onConflict: 'project_id,integration_type',
-        })
-        .select();
-
-      addNetworkLog('DATABASE', `Result: ${saveError ? 'ERROR' : 'SUCCESS'}`);
-
-      console.log('[GSC OAuth] Database save result:', { data: saveData, error: saveError });
-      if (saveError) {
-        console.error('[GSC OAuth] Database save error:', saveError);
-        addDebugLog(`Database save error: ${JSON.stringify(saveError)}`);
-        throw saveError;
-      }
-      console.log('[GSC OAuth] Database save successful, saved data:', JSON.stringify(saveData, null, 2));
-
-      console.log('[GSC OAuth] Credentials saved successfully');
-      addDebugLog('Credentials saved successfully');
-      console.log('[GSC OAuth] Setting isConnected to true');
-      setIsConnected(true);
-      addDebugLog('Setting isConnected to true');
-      console.log('[GSC OAuth] Cleaning up URL');
-      addDebugLog('Cleaning up URL');
-      window.history.replaceState({}, '', window.location.pathname);
-      console.log('[GSC OAuth] URL cleaned - new URL:', window.location.href);
-      addDebugLog('URL cleaned, should render main content now');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      const errorStack = err instanceof Error ? err.stack : '';
-      console.error('[GSC OAuth] ERROR:', err);
-      console.error('[GSC OAuth] ERROR STACK:', errorStack);
-      addDebugLog(`OAuth error: ${errorMessage}`);
-      addDebugLog(`Error stack: ${errorStack}`);
-      setError(`Failed to connect to Google Search Console: ${errorMessage}`);
-      setIsConnected(false);
-    } finally {
-      console.log('[GSC OAuth] ========== OAUTH CALLBACK COMPLETE ==========');
-      console.log('[GSC OAuth] Setting isConnecting=false, isLoading=false');
-      addDebugLog('OAuth callback complete - setting isConnecting=false, isLoading=false');
-      setIsConnecting(false);
-      setIsLoading(false);
-      console.log('[GSC OAuth] Final state - isLoading: false, isConnecting: false');
-      addDebugLog('Final state after OAuth - isLoading: false, isConnecting: false');
-    }
-  };
-
-  const fetchProperties = async (token: string) => {
-    console.log('[GSC Fetch] Fetching properties with token (length):', token?.length);
-    try {
-      console.log('[GSC Fetch] Making request to Google Search Console API');
-      addDebugLog('Fetching GSC properties from API');
-      addNetworkLog('REQUEST', 'GET https://www.googleapis.com/webmasters/v3/sites');
-      addNetworkLog('AUTH', `Bearer token (${token.length} chars)`);
-
-      const response = await fetch(
-        'https://www.googleapis.com/webmasters/v3/sites',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      console.log('[GSC Fetch] Response received - status:', response.status, 'statusText:', response.statusText);
-      addDebugLog(`Properties response status: ${response.status}`);
-      addNetworkLog('RESPONSE', `Status: ${response.status} ${response.statusText}`);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[GSC Fetch] Properties fetch failed:', errorText);
-        addDebugLog(`Properties fetch failed: ${errorText}`);
-        throw new Error('Failed to fetch properties');
-      }
-
-      const data = await response.json();
-      console.log('[GSC Fetch] RAW PROPERTIES RESPONSE:', JSON.stringify(data, null, 2));
-      const siteEntries = data.siteEntry || [];
-      console.log('[GSC Fetch] Found', siteEntries.length, 'properties');
-      addDebugLog(`Found ${siteEntries.length} properties`);
-      addDebugLog(`Properties data: ${JSON.stringify(siteEntries.map((s: any) => s.siteUrl))}`);
-
-      const mappedProperties = siteEntries.map((site: any) => ({
-        url: site.siteUrl,
-        permissionLevel: site.permissionLevel,
-      }));
-
-      console.log('[GSC Fetch] Mapped properties:', JSON.stringify(mappedProperties, null, 2));
-      addDebugLog(`Setting ${mappedProperties.length} properties in state`);
-      setProperties(mappedProperties);
-      console.log('[GSC Fetch] Properties set in state');
-      addDebugLog('Properties set in state');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error('[GSC Fetch] Error fetching properties:', err);
-      addDebugLog(`Error fetching properties: ${errorMessage}`);
-      console.error('Error fetching properties:', err);
-      setError(`Failed to fetch Search Console properties: ${errorMessage}`);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!selectedProject || !selectedProperty) return;
-
-    setIsSaving(true);
-    setError(null);
-
-    try {
       const { error: updateError } = await supabase
-        .from('integration_credentials')
-        .update({
-          selected_property: selectedProperty,
-          is_active: true,
-        })
-        .eq('project_id', selectedProject.id)
-        .eq('integration_type', 'google_search_console');
+        .from('oauth_connections')
+        .update({ access_token: newAccessToken })
+        .eq('id', connection.id);
 
       if (updateError) throw updateError;
 
-      setError(null);
+      setConnection({ ...connection, access_token: newAccessToken });
+      await loadSites();
     } catch (err) {
-      console.error('Error saving config:', err);
-      setError('Failed to save configuration. Please try again.');
-    } finally {
-      setIsSaving(false);
+      setError('Failed to refresh token. Please reconnect.');
     }
   };
 
-  const handleDisconnect = async () => {
-    if (!selectedProject) return;
-
-    try {
-      const { error: deleteError } = await supabase
-        .from('integration_credentials')
-        .delete()
-        .eq('project_id', selectedProject.id)
-        .eq('integration_type', 'google_search_console');
-
-      if (deleteError) throw deleteError;
-
-      setSelectedProperty('');
-      setProperties([]);
-      setIsConnected(false);
-      setAccessToken(null);
-      setTestResults(null);
-    } catch (err) {
-      console.error('Error disconnecting:', err);
-      setError('Failed to disconnect. Please try again.');
-    }
+  const handleSaveConfig = (newClientId: string, newClientSecret: string) => {
+    localStorage.setItem('gsc_client_id', newClientId);
+    localStorage.setItem('gsc_client_secret', newClientSecret);
+    setClientId(newClientId);
+    setClientSecret(newClientSecret);
   };
 
-  const handleTestApiRequest = async () => {
-    if (!accessToken) {
-      setError('No access token available');
+  const handleConnect = () => {
+    if (!clientId || !clientSecret) {
+      setError('Please configure OAuth credentials first');
+      setShowConfigModal(true);
       return;
     }
 
-    setIsTestLoading(true);
-    setError(null);
-    console.log('[GSC Test] Starting test API request');
+    setIsConnecting(true);
+    const state = crypto.randomUUID();
+    localStorage.setItem('oauth_state', state);
+
+    const authUrl = generateAuthUrl(clientId, state);
+    window.open(authUrl, '_blank', 'width=600,height=700');
+  };
+
+  const handleDisconnect = async () => {
+    if (!connection) return;
 
     try {
-      const response = await fetch(
-        'https://www.googleapis.com/webmasters/v3/sites',
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+      const { error: deleteError } = await supabase
+        .from('oauth_connections')
+        .delete()
+        .eq('id', connection.id);
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
+      if (deleteError) throw deleteError;
 
-      const data = await response.json();
-      console.log('[GSC Test] Sites list response:', data);
-      const siteEntries = data.siteEntry || [];
-
-      const verifiedSites = siteEntries.filter(
-        (s: any) => s.permissionLevel !== 'siteUnverifiedUser' && s.siteUrl.startsWith('http')
-      );
-
-      console.log('[GSC Test] Verified sites:', verifiedSites);
-
-      const sitesWithSitemaps = await Promise.all(
-        verifiedSites.map(async (site: any) => {
-          try {
-            const sitemapsResponse = await fetch(
-              `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(site.siteUrl)}/sitemaps`,
-              {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                },
-              }
-            );
-
-            if (!sitemapsResponse.ok) {
-              console.error('[GSC Test] Failed to fetch sitemaps for', site.siteUrl);
-              return {
-                siteUrl: site.siteUrl,
-                permissionLevel: site.permissionLevel,
-                sitemaps: [],
-                error: `Failed to fetch sitemaps: ${sitemapsResponse.status}`,
-              };
-            }
-
-            const sitemapsData = await sitemapsResponse.json();
-            console.log('[GSC Test] Sitemaps for', site.siteUrl, ':', sitemapsData);
-
-            return {
-              siteUrl: site.siteUrl,
-              permissionLevel: site.permissionLevel,
-              sitemaps: sitemapsData.sitemap || [],
-            };
-          } catch (err) {
-            console.error('[GSC Test] Error fetching sitemaps for', site.siteUrl, err);
-            return {
-              siteUrl: site.siteUrl,
-              permissionLevel: site.permissionLevel,
-              sitemaps: [],
-              error: err instanceof Error ? err.message : 'Unknown error',
-            };
-          }
-        })
-      );
-
-      console.log('[GSC Test] Complete results:', sitesWithSitemaps);
-      setTestResults(sitesWithSitemaps);
+      setConnection(null);
+      setSites([]);
+      setSelectedSite('');
+      setAnalytics([]);
+      setError('');
     } catch (err) {
-      console.error('[GSC Test] Error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to test API request');
-    } finally {
-      setIsTestLoading(false);
+      setError(err instanceof Error ? err.message : 'Failed to disconnect');
     }
   };
 
-  console.log('[GSC Render] Rendering decision - isLoading:', isLoading, 'isConnecting:', isConnecting, 'selectedProject:', !!selectedProject);
+  const calculateTotals = () => {
+    return analytics.reduce(
+      (acc, row) => ({
+        clicks: acc.clicks + row.clicks,
+        impressions: acc.impressions + row.impressions,
+        avgCtr: acc.avgCtr + row.ctr,
+        avgPosition: acc.avgPosition + row.position,
+      }),
+      { clicks: 0, impressions: 0, avgCtr: 0, avgPosition: 0 }
+    );
+  };
 
-  if (!selectedProject) {
-    console.log('[GSC Render] Showing no project warning');
+  if (loading) {
     return (
-      <DashboardContent>
-        <Alert severity="warning">
-          Please select a project to configure Google Search Console integration.
-        </Alert>
+      <DashboardContent maxWidth="xl">
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+          <CircularProgress />
+        </Box>
       </DashboardContent>
     );
   }
 
-  console.log('[GSC Render] ========== RENDER DECISION ==========');
-  console.log('[GSC Render] isLoading:', isLoading);
-  console.log('[GSC Render] isConnecting:', isConnecting);
-  console.log('[GSC Render] isConnected:', isConnected);
-  console.log('[GSC Render] selectedProject:', !!selectedProject);
-  console.log('[GSC Render] properties.length:', properties.length);
-  console.log('[GSC Render] error:', error);
-  console.log('[GSC Render] Rendering main content');
+  const totals = calculateTotals();
 
   return (
-    <DashboardContent>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
-        <Box>
-          <Typography variant="h4" gutterBottom>
-            Google Search Console
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Configure Google Search Console for {selectedProject.name}
-          </Typography>
-        </Box>
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={() => setShowDebugPanel(!showDebugPanel)}
-          startIcon={<Iconify icon={showDebugPanel ? 'eva:eye-off-fill' : 'eva:eye-fill'} />}
-        >
-          {showDebugPanel ? 'Hide' : 'Show'} Debug
-        </Button>
-      </Stack>
-
-      {showDebugPanel && (
-        <Card sx={{ mb: 3, bgcolor: 'info.lighter', border: '2px solid', borderColor: 'info.main' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ color: 'info.darker' }}>
-              Live Debug Panel
-            </Typography>
-            <Stack spacing={2}>
-              <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 1 }}>
-                <Typography variant="subtitle2" gutterBottom sx={{ fontFamily: 'monospace' }}>
-                  Current State
-                </Typography>
-                <Stack spacing={0.5} sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                  <Box>isLoading: <strong>{String(isLoading)}</strong></Box>
-                  <Box>isConnecting: <strong>{String(isConnecting)}</strong></Box>
-                  <Box>isConnected: <strong>{String(isConnected)}</strong></Box>
-                  <Box>properties: <strong>{properties.length}</strong></Box>
-                  <Box>accessToken: <strong>{accessToken ? 'present' : 'null'}</strong></Box>
-                  <Box>selectedProject: <strong>{selectedProject ? selectedProject.name : 'null'}</strong></Box>
-                  <Box>error: <strong>{error || 'null'}</strong></Box>
-                </Stack>
-              </Box>
-
-              {networkLogs.length > 0 && (
-                <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 1 }}>
-                  <Typography variant="subtitle2" gutterBottom sx={{ fontFamily: 'monospace' }}>
-                    Network Activity
-                  </Typography>
-                  <Box sx={{ maxHeight: 200, overflow: 'auto', fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                    {networkLogs.map((log, idx) => (
-                      <Box
-                        key={idx}
-                        sx={{
-                          mb: 0.5,
-                          p: 0.5,
-                          borderRadius: 0.5,
-                          bgcolor: log.type === 'ERROR' ? 'error.lighter' : 'background.neutral',
-                        }}
-                      >
-                        <Box component="span" sx={{ color: 'text.secondary' }}>
-                          [{log.timestamp.split('T')[1].substring(0, 12)}]
-                        </Box>{' '}
-                        <Box component="span" sx={{ fontWeight: 'bold', color: log.type === 'ERROR' ? 'error.main' : 'primary.main' }}>
-                          [{log.type}]
-                        </Box>{' '}
-                        {log.message}
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              )}
-            </Stack>
-          </CardContent>
-        </Card>
-      )}
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
-      {debugLog.length > 0 && (
-        <Card sx={{ mb: 3, bgcolor: 'grey.900', color: 'grey.100' }}>
-          <CardContent>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-              <Typography variant="subtitle2" sx={{ fontFamily: 'monospace' }}>
-                Debug Log
-              </Typography>
-              <Button
-                size="small"
-                onClick={() => {
-                  navigator.clipboard.writeText(debugLog.join('\n'));
-                }}
-                sx={{ color: 'grey.300' }}
-              >
-                Copy
-              </Button>
-            </Stack>
-            <Box
-              sx={{
-                maxHeight: 200,
-                overflow: 'auto',
-                fontFamily: 'monospace',
-                fontSize: '0.75rem',
-                bgcolor: 'grey.800',
-                p: 2,
-                borderRadius: 1,
-              }}
+    <DashboardContent maxWidth="xl">
+      <Stack spacing={3}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Typography variant="h4">Google Search Console</Typography>
+          {!connection && (
+            <Button
+              variant="outlined"
+              startIcon={<Iconify icon="solar:settings-bold-duotone" />}
+              onClick={() => setShowConfigModal(true)}
             >
-              {debugLog.map((log, index) => (
-                <Box key={index} sx={{ mb: 0.5 }}>
-                  {log}
-                </Box>
-              ))}
-            </Box>
-          </CardContent>
-        </Card>
-      )}
+              Configure
+            </Button>
+          )}
+        </Stack>
 
-      <Card>
-        <CardContent>
-          <Stack spacing={3}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Box
-                sx={{
-                  width: 64,
-                  height: 64,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 2,
-                  bgcolor: 'background.neutral',
-                }}
-              >
-                <Iconify icon="logos:google-icon" width={48} />
-              </Box>
-              <Box>
-                <Typography variant="h6">Google Search Console API</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Monitor and optimize your site's search performance
+        {error && (
+          <Alert severity="error" onClose={() => setError('')}>
+            {error}
+          </Alert>
+        )}
+
+        {!connection ? (
+          <Card>
+            <CardContent>
+              <Stack spacing={3} alignItems="center" sx={{ py: 5 }}>
+                <Iconify icon="logos:google" width={64} />
+                <Typography variant="h6">Connect Google Search Console</Typography>
+                <Typography color="text.secondary" textAlign="center" sx={{ maxWidth: 480 }}>
+                  Connect your Google Search Console account to view your website's search analytics and
+                  performance metrics.
                 </Typography>
-              </Box>
-            </Box>
-
-            {!isConnected ? (
-              <>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Connect your Google account to access Search Console data for this project.
-                </Typography>
-
-                <Box sx={{ bgcolor: 'background.neutral', p: 2, borderRadius: 1 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    What you'll need:
-                  </Typography>
-                  <Typography variant="body2" component="div" color="text.secondary">
-                    <ul style={{ margin: 0, paddingLeft: 20 }}>
-                      <li>A Google account with access to Search Console</li>
-                      <li>Permission to view the properties you want to track</li>
-                      <li>OAuth 2.0 credentials configured in Google Cloud Console</li>
-                    </ul>
-                  </Typography>
-                </Box>
-
-                <Stack direction="row" spacing={2} justifyContent="flex-end">
-                  <Button
-                    variant="contained"
-                    onClick={handleConnect}
-                    disabled={isConnecting}
-                    startIcon={<Iconify icon="eva:link-2-fill" />}
-                  >
-                    Connect with Google
-                  </Button>
-                </Stack>
-              </>
-            ) : (
-              <>
-                <Box
-                  sx={{
-                    p: 2,
-                    borderRadius: 1,
-                    bgcolor: 'success.lighter',
-                    border: (theme) => `1px solid ${theme.palette.success.main}`,
-                  }}
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<Iconify icon="solar:link-bold" />}
+                  onClick={handleConnect}
+                  disabled={isConnecting || !clientId || !clientSecret}
                 >
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <Iconify icon="eva:checkmark-circle-2-fill" color="success.main" width={24} />
-                    <Typography variant="subtitle2" color="success.darker">
-                      Successfully connected to Google Search Console
+                  {isConnecting ? 'Connecting...' : 'Connect with Google'}
+                </Button>
+                {(!clientId || !clientSecret) && (
+                  <Typography variant="caption" color="error">
+                    Please configure OAuth credentials first
+                  </Typography>
+                )}
+              </Stack>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="h6">Connected</Typography>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="outlined"
+                  startIcon={<Iconify icon="solar:settings-bold-duotone" />}
+                  onClick={() => setShowConfigModal(true)}
+                >
+                  Configure
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<Iconify icon="solar:link-broken-bold" />}
+                  onClick={handleDisconnect}
+                >
+                  Disconnect
+                </Button>
+              </Stack>
+            </Stack>
+
+            {sites.length > 0 && (
+              <Card>
+                <CardContent>
+                  <FormControl fullWidth>
+                    <InputLabel>Select Property</InputLabel>
+                    <Select
+                      value={selectedSite}
+                      label="Select Property"
+                      onChange={(e) => setSelectedSite(e.target.value)}
+                    >
+                      {sites.map((site) => (
+                        <MenuItem key={site.siteUrl} value={site.siteUrl}>
+                          {site.siteUrl}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </CardContent>
+              </Card>
+            )}
+
+            {analytics.length > 0 && (
+              <>
+                <Stack direction="row" spacing={2}>
+                  <Card sx={{ flex: 1 }}>
+                    <CardContent>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 48,
+                            height: 48,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 1.5,
+                            bgcolor: 'primary.lighter',
+                          }}
+                        >
+                          <Iconify icon="solar:cursor-bold" width={24} sx={{ color: 'primary.main' }} />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Total Clicks
+                          </Typography>
+                          <Typography variant="h4">{totals.clicks.toLocaleString()}</Typography>
+                        </Box>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+
+                  <Card sx={{ flex: 1 }}>
+                    <CardContent>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 48,
+                            height: 48,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 1.5,
+                            bgcolor: 'success.lighter',
+                          }}
+                        >
+                          <Iconify icon="solar:eye-bold" width={24} sx={{ color: 'success.main' }} />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Total Impressions
+                          </Typography>
+                          <Typography variant="h4">{totals.impressions.toLocaleString()}</Typography>
+                        </Box>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+
+                  <Card sx={{ flex: 1 }}>
+                    <CardContent>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 48,
+                            height: 48,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 1.5,
+                            bgcolor: 'warning.lighter',
+                          }}
+                        >
+                          <Iconify icon="solar:chart-bold" width={24} sx={{ color: 'warning.main' }} />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Avg. CTR
+                          </Typography>
+                          <Typography variant="h4">
+                            {((totals.avgCtr / analytics.length) * 100).toFixed(2)}%
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+
+                  <Card sx={{ flex: 1 }}>
+                    <CardContent>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 48,
+                            height: 48,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 1.5,
+                            bgcolor: 'info.lighter',
+                          }}
+                        >
+                          <Iconify icon="solar:target-bold" width={24} sx={{ color: 'info.main' }} />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Avg. Position
+                          </Typography>
+                          <Typography variant="h4">
+                            {(totals.avgPosition / analytics.length).toFixed(1)}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Stack>
+
+                <Card>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 3, pb: 0 }}>
+                    <Typography variant="h6">Top Queries (Last 28 Days)</Typography>
+                    <Button
+                      size="small"
+                      startIcon={<Iconify icon="solar:refresh-bold" />}
+                      onClick={loadAnalytics}
+                      disabled={refreshing}
+                    >
+                      Refresh
+                    </Button>
+                  </Stack>
+                  <Box sx={{ overflow: 'auto' }}>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Query</TableCell>
+                          <TableCell align="right">Clicks</TableCell>
+                          <TableCell align="right">Impressions</TableCell>
+                          <TableCell align="right">CTR</TableCell>
+                          <TableCell align="right">Position</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {analytics.map((row, index) => (
+                          <TableRow key={index} hover>
+                            <TableCell>{row.keys[0]}</TableCell>
+                            <TableCell align="right">{row.clicks}</TableCell>
+                            <TableCell align="right">{row.impressions.toLocaleString()}</TableCell>
+                            <TableCell align="right">{(row.ctr * 100).toFixed(2)}%</TableCell>
+                            <TableCell align="right">{row.position.toFixed(1)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Box>
+                </Card>
+              </>
+            )}
+
+            {sites.length === 0 && !error && (
+              <Card>
+                <CardContent>
+                  <Stack spacing={2} alignItems="center" sx={{ py: 5 }}>
+                    <Iconify icon="solar:inbox-bold-duotone" width={64} />
+                    <Typography color="text.secondary">
+                      No properties found in your Search Console account.
                     </Typography>
                   </Stack>
-                </Box>
-
-                {properties.length > 0 ? (
-                  <>
-                    <FormControl fullWidth>
-                      <InputLabel>Select Property</InputLabel>
-                      <Select
-                        value={selectedProperty}
-                        label="Select Property"
-                        onChange={(e) => setSelectedProperty(e.target.value)}
-                      >
-                        {properties.map((property) => (
-                          <MenuItem key={property.url} value={property.url}>
-                            <Stack direction="row" alignItems="center" spacing={1} sx={{ width: '100%' }}>
-                              <Typography sx={{ flex: 1 }}>{property.url}</Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {property.permissionLevel}
-                              </Typography>
-                            </Stack>
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    {selectedProperty && (
-                      <Box sx={{ bgcolor: 'background.neutral', p: 2, borderRadius: 1 }}>
-                        <Typography variant="subtitle2" gutterBottom>
-                          Property Details
-                        </Typography>
-                        <Stack spacing={1}>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              URL:
-                            </Typography>
-                            <Typography variant="body2">{selectedProperty}</Typography>
-                          </Stack>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Permission:
-                            </Typography>
-                            <Typography variant="body2">
-                              {properties.find((p) => p.url === selectedProperty)?.permissionLevel}
-                            </Typography>
-                          </Stack>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="body2" color="text.secondary">
-                              Project:
-                            </Typography>
-                            <Typography variant="body2">{selectedProject.name}</Typography>
-                          </Stack>
-                        </Stack>
-                      </Box>
-                    )}
-                  </>
-                ) : (
-                  <Alert severity="info">
-                    No properties found. Make sure your Google account has access to Search Console properties.
-                  </Alert>
-                )}
-
-                <Stack direction="row" spacing={2} justifyContent="flex-end">
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={handleDisconnect}
-                    startIcon={<Iconify icon="eva:close-fill" />}
-                  >
-                    Disconnect
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={handleTestApiRequest}
-                    disabled={isTestLoading}
-                    startIcon={
-                      isTestLoading ? (
-                        <Iconify icon="svg-spinners:3-dots-fade" />
-                      ) : (
-                        <Iconify icon="eva:code-outline" />
-                      )
-                    }
-                  >
-                    {isTestLoading ? 'Testing...' : 'Test API Request'}
-                  </Button>
-                  {properties.length > 0 && (
-                    <Button
-                      variant="contained"
-                      onClick={handleSave}
-                      disabled={!selectedProperty || isSaving}
-                      startIcon={
-                        isSaving ? (
-                          <Iconify icon="svg-spinners:3-dots-fade" />
-                        ) : (
-                          <Iconify icon="eva:save-fill" />
-                        )
-                      }
-                    >
-                      {isSaving ? 'Saving...' : 'Save Configuration'}
-                    </Button>
-                  )}
-                </Stack>
-              </>
+                </CardContent>
+              </Card>
             )}
-          </Stack>
-        </CardContent>
-      </Card>
+          </>
+        )}
+      </Stack>
 
-      {testResults && (
-        <Card sx={{ mt: 3 }}>
-          <CardContent>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-              <Typography variant="h6">API Test Results</Typography>
-              <Button
-                size="small"
-                onClick={() => setTestResults(null)}
-                startIcon={<Iconify icon="eva:close-fill" />}
-              >
-                Clear
-              </Button>
-            </Stack>
-
-            {testResults.length === 0 ? (
-              <Alert severity="info">No verified sites found</Alert>
-            ) : (
-              <Box sx={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
-                      <th style={{ textAlign: 'left', padding: '12px', fontWeight: 600 }}>
-                        Verified Site
-                      </th>
-                      <th style={{ textAlign: 'left', padding: '12px', fontWeight: 600 }}>
-                        Permission
-                      </th>
-                      <th style={{ textAlign: 'left', padding: '12px', fontWeight: 600 }}>
-                        Sitemaps
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {testResults.map((site: any, index: number) => (
-                      <tr
-                        key={index}
-                        style={{
-                          borderBottom: '1px solid #f0f0f0',
-                          backgroundColor: index % 2 === 0 ? '#fafafa' : 'transparent',
-                        }}
-                      >
-                        <td style={{ padding: '12px', verticalAlign: 'top' }}>
-                          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                            {site.siteUrl}
-                          </Typography>
-                        </td>
-                        <td style={{ padding: '12px', verticalAlign: 'top' }}>
-                          <Typography variant="caption" color="text.secondary">
-                            {site.permissionLevel}
-                          </Typography>
-                        </td>
-                        <td style={{ padding: '12px', verticalAlign: 'top' }}>
-                          {site.error ? (
-                            <Typography variant="body2" color="error">
-                              {site.error}
-                            </Typography>
-                          ) : site.sitemaps.length === 0 ? (
-                            <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
-                              None
-                            </Typography>
-                          ) : (
-                            <Stack spacing={0.5}>
-                              {site.sitemaps.map((sitemap: any, sIndex: number) => (
-                                <Typography
-                                  key={sIndex}
-                                  variant="body2"
-                                  sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}
-                                >
-                                  {sitemap.path}
-                                </Typography>
-                              ))}
-                            </Stack>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <ConfigModal
+        isOpen={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        onSave={handleSaveConfig}
+        initialClientId={clientId}
+        initialClientSecret={clientSecret}
+      />
     </DashboardContent>
   );
 }

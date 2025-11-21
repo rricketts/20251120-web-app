@@ -25,6 +25,7 @@ export const IntegrationsPage = lazy(() => import('src/pages/integrations'));
 export const GoogleSearchConsolePage = lazy(() => import('src/pages/integrations-google-search-console'));
 export const ProfilePage = lazy(() => import('src/pages/profile'));
 export const LogoutPage = lazy(() => import('src/pages/logout'));
+export const OAuthCallbackPage = lazy(() => import('src/pages/oauth-callback'));
 export const Page404 = lazy(() => import('src/pages/page-not-found'));
 
 const renderFallback = () => (
@@ -82,6 +83,14 @@ export const routesSection: RouteObject[] = [
   {
     path: 'logout',
     element: <LogoutPage />,
+  },
+  {
+    path: 'callback',
+    element: (
+      <Suspense fallback={renderFallback()}>
+        <OAuthCallbackPage />
+      </Suspense>
+    ),
   },
   { path: '*', element: <Navigate to="/" replace /> },
 ];

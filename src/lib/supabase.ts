@@ -48,3 +48,15 @@ export type Post = {
   created_at: string;
   updated_at: string;
 };
+
+export type OAuthConnection = {
+  id: string;
+  user_id: string;
+  provider: string;
+  access_token: string;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  scope: string;
+  created_at: string;
+  updated_at: string;
+};
