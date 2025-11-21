@@ -308,18 +308,21 @@ export function GoogleSearchConsoleConfig() {
       addDebugLog('URL cleaned, should render main content now');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorStack = err instanceof Error ? err.stack : '';
       console.error('[GSC OAuth] ERROR:', err);
+      console.error('[GSC OAuth] ERROR STACK:', errorStack);
       addDebugLog(`OAuth error: ${errorMessage}`);
-      console.error('OAuth error:', err);
+      addDebugLog(`Error stack: ${errorStack}`);
       setError(`Failed to connect to Google Search Console: ${errorMessage}`);
+      setIsConnected(false);
     } finally {
       console.log('[GSC OAuth] ========== OAUTH CALLBACK COMPLETE ==========');
       console.log('[GSC OAuth] Setting isConnecting=false, isLoading=false');
       addDebugLog('OAuth callback complete - setting isConnecting=false, isLoading=false');
       setIsConnecting(false);
       setIsLoading(false);
-      console.log('[GSC OAuth] Final state - isLoading: false, isConnecting: false, isConnected:', isConnected);
-      addDebugLog(`Final state after OAuth - isLoading: ${false}, isConnecting: ${false}`);
+      console.log('[GSC OAuth] Final state - isLoading: false, isConnecting: false');
+      addDebugLog('Final state after OAuth - isLoading: false, isConnecting: false');
     }
   };
 
@@ -536,7 +539,15 @@ export function GoogleSearchConsoleConfig() {
     );
   }
 
-  console.log('[GSC Render] Rendering main content - isConnected:', isConnected, 'properties:', properties.length);
+  console.log('[GSC Render] ========== RENDER DECISION ==========');
+  console.log('[GSC Render] isLoading:', isLoading);
+  console.log('[GSC Render] isConnecting:', isConnecting);
+  console.log('[GSC Render] isConnected:', isConnected);
+  console.log('[GSC Render] selectedProject:', !!selectedProject);
+  console.log('[GSC Render] properties.length:', properties.length);
+  console.log('[GSC Render] error:', error);
+  console.log('[GSC Render] Rendering main content');
+
   return (
     <DashboardContent>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
