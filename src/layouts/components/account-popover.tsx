@@ -35,7 +35,7 @@ export function AccountPopover({ data = [], sx, ...other }: AccountPopoverProps)
 
   const filteredData = data.filter((item) => {
     if (item.href === '/user') {
-      return userRole === 'admin' || userRole === 'manager';
+      return userRole !== 'viewer';
     }
     return true;
   });

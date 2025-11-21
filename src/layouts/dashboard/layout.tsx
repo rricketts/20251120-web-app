@@ -56,9 +56,9 @@ export function DashboardLayout({
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
   const navigationData = useMemo(() => {
-    const canManageUsers = ['super_admin', 'admin', 'manager'].includes(userRole);
+    const canSeeUsers = userRole !== 'viewer';
 
-    const data = canManageUsers
+    const data = canSeeUsers
       ? [
           ...navData,
           {
