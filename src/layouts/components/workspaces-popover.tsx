@@ -1,6 +1,6 @@
 import type { ButtonBaseProps } from '@mui/material/ButtonBase';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
@@ -11,6 +11,7 @@ import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
 import Divider from '@mui/material/Divider';
 
 import { useRouter } from 'src/routes/hooks';
+import { supabase } from 'src/lib/supabase';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -28,9 +29,41 @@ export type WorkspacesPopoverProps = ButtonBaseProps & {
 
 export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopoverProps) {
   const router = useRouter();
-  const [workspace, setWorkspace] = useState(data[0]);
-
+  const [projects, setProjects] = useState<typeof data>([]);
+  const [workspace, setWorkspace] = useState<typeof data[0] | null>(null);
   const [openPopover, setOpenPopover] = useState<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const { data: projectsData, error } = await supabase
+          .from('projects')
+          .select('id, name, plan, logo_url')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching projects:', error);
+          return;
+        }
+
+        const formattedProjects = (projectsData || []).map((project) => ({
+          id: project.id,
+          name: project.name,
+          logo: project.logo_url || `/assets/icons/workspaces/logo-1.webp`,
+          plan: project.plan,
+        }));
+
+        setProjects(formattedProjects);
+        if (formattedProjects.length > 0 && !workspace) {
+          setWorkspace(formattedProjects[0]);
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      }
+    };
+
+    fetchProjects();
+  }, [workspace]);
 
   const handleOpenPopover = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     setOpenPopover(event.currentTarget);
@@ -61,6 +94,42 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
     <Label color={plan === 'Free' ? 'default' : 'info'}>{plan}</Label>
   );
 
+  if (!workspace && projects.length === 0) {
+    return (
+      <ButtonBase
+        disableRipple
+        onClick={handleManageProjects}
+        sx={{
+          pl: 2,
+          py: 3,
+          gap: 1.5,
+          pr: 1.5,
+          width: 1,
+          borderRadius: 1.5,
+          textAlign: 'left',
+          justifyContent: 'flex-start',
+          bgcolor: (theme) => varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+          ...sx,
+        }}
+        {...other}
+      >
+        <Iconify icon="solar:add-circle-bold-duotone" width={24} sx={{ color: 'primary.main' }} />
+        <Box
+          sx={{
+            gap: 1,
+            flexGrow: 1,
+            display: 'flex',
+            alignItems: 'center',
+            typography: 'body2',
+            fontWeight: 'fontWeightSemiBold',
+          }}
+        >
+          Create project
+        </Box>
+      </ButtonBase>
+    );
+  }
+
   return (
     <>
       <ButtonBase
@@ -80,7 +149,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
         }}
         {...other}
       >
-        {renderAvatar(workspace?.name, workspace?.logo)}
+        {renderAvatar(workspace?.name || '', workspace?.logo || '')}
 
         <Box
           sx={{
@@ -93,7 +162,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
           }}
         >
           {workspace?.name}
-          {renderLabel(workspace?.plan)}
+          {workspace?.plan && renderLabel(workspace.plan)}
         </Box>
 
         <Iconify width={16} icon="carbon:chevron-sort" sx={{ color: 'text.disabled' }} />
@@ -119,7 +188,7 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
             },
           }}
         >
-          {data.map((option) => (
+          {projects.map((option) => (
             <MenuItem
               key={option.id}
               selected={option.id === workspace?.id}
