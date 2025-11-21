@@ -6,6 +6,7 @@ import { useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
+import LinearProgress from '@mui/material/LinearProgress';
 import { useTheme } from '@mui/material/styles';
 
 import { useRouter } from 'src/routes/hooks';
@@ -138,7 +139,18 @@ export function DashboardLayout({
   const renderMain = () => <MainSection {...slotProps?.main}>{children}</MainSection>;
 
   if (loading) {
-    return null;
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+        }}
+      >
+        <LinearProgress sx={{ width: 320 }} />
+      </Box>
+    );
   }
 
   return (
