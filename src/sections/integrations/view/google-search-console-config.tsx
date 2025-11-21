@@ -91,20 +91,38 @@ export function GoogleSearchConsoleConfig() {
       if (code || errorParam) {
         if (window.opener && !window.opener.closed) {
           console.log('[GSC UseEffect] This is OAuth popup, sending message to parent');
+          console.log('[GSC UseEffect] window.opener exists:', !!window.opener);
+          console.log('[GSC UseEffect] window.opener.closed:', window.opener.closed);
+          console.log('[GSC UseEffect] Sending message with code:', code ? 'present' : 'none');
           addDebugLog('Detected OAuth popup, sending result to parent window');
 
-          window.opener.postMessage(
-            {
-              type: 'GOOGLE_OAUTH_RESULT',
-              code,
-              error: errorParam,
-              state,
-            },
-            window.location.origin
-          );
+          try {
+            window.opener.postMessage(
+              {
+                type: 'GOOGLE_OAUTH_RESULT',
+                code,
+                error: errorParam,
+                state,
+              },
+              window.location.origin
+            );
+            console.log('[GSC UseEffect] Message sent successfully');
+            addDebugLog('Message sent to parent window successfully');
 
-          window.close();
+            setTimeout(() => {
+              console.log('[GSC UseEffect] Closing popup after 100ms delay');
+              window.close();
+            }, 100);
+          } catch (err) {
+            console.error('[GSC UseEffect] Error sending message:', err);
+            addDebugLog(`Error sending message to parent: ${err}`);
+          }
           return;
+        } else {
+          console.log('[GSC UseEffect] This is NOT a popup window');
+          console.log('[GSC UseEffect] window.opener:', window.opener);
+          console.log('[GSC UseEffect] Is popup closed?', window.opener?.closed);
+          addDebugLog('Not a popup window, processing locally');
         }
 
         console.log('[GSC UseEffect] This is main window with OAuth result');
@@ -146,17 +164,26 @@ export function GoogleSearchConsoleConfig() {
     });
 
     const handleMessage = async (event: MessageEvent) => {
+      console.log('[GSC Message] Received message event');
+      console.log('[GSC Message] Event origin:', event.origin);
+      console.log('[GSC Message] Window origin:', window.location.origin);
+      console.log('[GSC Message] Event data:', event.data);
+
       if (event.origin !== window.location.origin) {
         console.log('[GSC Message] Ignoring message from different origin:', event.origin);
+        addDebugLog(`Ignoring message from different origin: ${event.origin}`);
         return;
       }
 
       if (event.data.type === 'GOOGLE_OAUTH_RESULT') {
         console.log('[GSC Message] Received OAuth result from popup');
         addDebugLog('Received OAuth result from popup window');
+        addDebugLog(`OAuth data: code=${event.data.code ? 'present' : 'none'}, error=${event.data.error || 'none'}`);
 
         const { code, error, state } = event.data;
         const savedState = sessionStorage.getItem('oauth_state');
+
+        console.log('[GSC Message] State comparison - received:', state, 'saved:', savedState);
 
         if (state !== savedState) {
           console.error('[GSC Message] State mismatch!');
@@ -175,15 +202,22 @@ export function GoogleSearchConsoleConfig() {
         }
 
         if (code) {
-          console.log('[GSC Message] Processing OAuth code');
+          console.log('[GSC Message] Processing OAuth code from popup');
           addDebugLog('Processing OAuth code from popup');
           await handleOAuthCallback(code);
         }
+      } else {
+        console.log('[GSC Message] Message type not recognized:', event.data.type);
       }
     };
 
+    console.log('[GSC Message] Adding message event listener');
+    addDebugLog('Message listener registered for OAuth popup communication');
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    return () => {
+      console.log('[GSC Message] Removing message event listener');
+      window.removeEventListener('message', handleMessage);
+    };
   }, []);
 
   useEffect(() => {
@@ -287,21 +321,32 @@ export function GoogleSearchConsoleConfig() {
       setIsConnecting(true);
 
       const checkPopup = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkPopup);
-          addDebugLog('OAuth popup was closed');
+        try {
+          if (popup.closed) {
+            clearInterval(checkPopup);
+            console.log('[GSC OAuth] Popup window closed');
+            addDebugLog('OAuth popup was closed');
 
-          const urlParams = new URLSearchParams(window.location.search);
-          const code = urlParams.get('code');
+            setTimeout(() => {
+              const urlParams = new URLSearchParams(window.location.search);
+              const code = urlParams.get('code');
 
-          if (!code) {
-            setIsConnecting(false);
-            addDebugLog('No OAuth code found after popup closed');
+              if (!code && isConnecting) {
+                console.log('[GSC OAuth] No code found after popup closed');
+                addDebugLog('No OAuth code received - user may have cancelled or popup communication failed');
+                addNetworkLog('ERROR', 'No OAuth code received from popup');
+                setIsConnecting(false);
+                setError('Authorization was cancelled or did not complete. Please try again.');
+              }
+            }, 500);
           }
+        } catch (err) {
+          console.error('[GSC OAuth] Error checking popup status:', err);
         }
       }, 500);
     } else {
       addDebugLog('Failed to open OAuth popup - popup blocked?');
+      addNetworkLog('ERROR', 'Popup blocked by browser');
       setError('Please allow popups for this site to connect to Google Search Console');
     }
   };
