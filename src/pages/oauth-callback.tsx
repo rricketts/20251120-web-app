@@ -24,55 +24,42 @@ export default function OAuthCallbackPage() {
           throw new Error(`OAuth error: ${error}`);
         }
 
-        if (!code) {
-          throw new Error('No authorization code received');
+        if (!code || !state) {
+          throw new Error('Missing authorization code or state parameter');
         }
 
-        let savedState: string | null = null;
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-        if (window.opener) {
-          console.log('Popup mode: Requesting state from parent window...');
-          savedState = await new Promise<string | null>((resolve) => {
-            const handleMessage = (event: MessageEvent) => {
-              console.log('Callback received message:', event.data);
-              if (event.origin !== window.location.origin) {
-                console.log('Origin mismatch:', event.origin, 'vs', window.location.origin);
-                return;
-              }
-              if (event.data.type === 'oauth_state_response') {
-                console.log('Received state from parent:', event.data.state);
-                window.removeEventListener('message', handleMessage);
-                resolve(event.data.state);
-              }
-            };
-
-            window.addEventListener('message', handleMessage);
-
-            setTimeout(() => {
-              window.opener.postMessage({ type: 'oauth_request_state' }, window.location.origin);
-            }, 100);
-
-            setTimeout(() => {
-              console.log('Timeout waiting for parent state');
-              window.removeEventListener('message', handleMessage);
-              resolve(null);
-            }, 5000);
-          });
-        } else {
-          console.log('Direct navigation mode: Using localStorage');
-          savedState = localStorage.getItem('oauth_state');
-          localStorage.removeItem('oauth_state');
+        if (!user) {
+          throw new Error('User not authenticated');
         }
 
-        console.log('Final saved state:', savedState);
-        console.log('URL state parameter:', state);
-        console.log('State match:', state === savedState);
+        const { data: stateRecord, error: stateError } = await supabase
+          .from('oauth_states')
+          .select('*')
+          .eq('state', state)
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-        if (!savedState || state !== savedState) {
-          throw new Error(
-            `Invalid state parameter - possible CSRF attack (expected: ${savedState}, got: ${state})`
-          );
+        if (stateError) {
+          console.error('Error checking state:', stateError);
+          throw new Error('Failed to verify state parameter');
         }
+
+        if (!stateRecord) {
+          throw new Error('Invalid state parameter - possible CSRF attack');
+        }
+
+        if (new Date(stateRecord.expires_at) < new Date()) {
+          throw new Error('State parameter expired - please try again');
+        }
+
+        await supabase
+          .from('oauth_states')
+          .delete()
+          .eq('id', stateRecord.id);
 
         const {
           data: { session },
@@ -103,14 +90,6 @@ export default function OAuthCallbackPage() {
         }
 
         const tokens = await response.json();
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) {
-          throw new Error('User not authenticated');
-        }
 
         const expiresAt = new Date();
         expiresAt.setSeconds(expiresAt.getSeconds() + tokens.expires_in);

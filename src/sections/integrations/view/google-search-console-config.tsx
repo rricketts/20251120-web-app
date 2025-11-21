@@ -55,13 +55,7 @@ export function GoogleSearchConsoleConfig() {
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
 
-      if (event.data.type === 'oauth_request_state') {
-        const savedState = localStorage.getItem('oauth_state');
-        event.source?.postMessage(
-          { type: 'oauth_state_response', state: savedState },
-          { targetOrigin: window.location.origin }
-        );
-      } else if (event.data.type === 'oauth_success') {
+      if (event.data.type === 'oauth_success') {
         setIsConnecting(false);
         loadConnection();
       }
@@ -194,13 +188,35 @@ export function GoogleSearchConsoleConfig() {
   };
 
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     setIsConnecting(true);
-    const state = crypto.randomUUID();
-    localStorage.setItem('oauth_state', state);
 
-    const authUrl = generateAuthUrl(GOOGLE_CLIENT_ID, state);
-    window.open(authUrl, '_blank', 'width=600,height=700');
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const state = crypto.randomUUID();
+
+      const { error: insertError } = await supabase
+        .from('oauth_states')
+        .insert({
+          user_id: user.id,
+          state,
+        });
+
+      if (insertError) throw insertError;
+
+      const authUrl = generateAuthUrl(GOOGLE_CLIENT_ID, state);
+      window.open(authUrl, '_blank', 'width=600,height=700');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to initiate OAuth');
+      setIsConnecting(false);
+    }
   };
 
   const handleDisconnect = async () => {
