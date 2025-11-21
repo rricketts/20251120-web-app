@@ -64,10 +64,19 @@ export function UserView() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+      if (!currentUser) {
+        throw new Error('Not authenticated');
+      }
+
+      let query = supabase.from('users').select('*');
+
+      if (userRole === 'manager') {
+        query = query.or(`created_by.eq.${currentUser.id},role.eq.manager,role.eq.user`);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -78,7 +87,7 @@ export function UserView() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userRole]);
 
   useEffect(() => {
     fetchUsers();

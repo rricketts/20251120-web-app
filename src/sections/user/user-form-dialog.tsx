@@ -224,6 +224,8 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
 
         userId = authData.user.id;
 
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+
         const { error: insertError } = await supabase
           .from('users')
           .insert([
@@ -234,6 +236,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               role: formData.role,
               is_verified: formData.isVerified,
               status: formData.status,
+              created_by: currentUser?.id,
             },
           ]);
 
