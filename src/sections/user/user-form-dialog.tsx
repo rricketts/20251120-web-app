@@ -185,6 +185,17 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
 
         if (updateError) throw updateError;
 
+        if (formData.isVerified && !editUser.isVerified) {
+          const { error: authUpdateError } = await supabase.auth.admin.updateUserById(
+            editUser.id,
+            { email_confirm: true }
+          );
+
+          if (authUpdateError) {
+            console.error('Failed to confirm email in auth system:', authUpdateError);
+          }
+        }
+
         if (isManagerRole) {
           const { error: deleteError } = await supabase
             .from('project_members')
@@ -216,6 +227,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               name: formData.name,
               role: formData.role,
             },
+            emailRedirectTo: undefined,
           },
         });
 
@@ -223,6 +235,17 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         if (!authData.user) throw new Error('Failed to create user');
 
         userId = authData.user.id;
+
+        if (formData.isVerified) {
+          const { error: authUpdateError } = await supabase.auth.admin.updateUserById(
+            userId,
+            { email_confirm: true }
+          );
+
+          if (authUpdateError) {
+            console.error('Failed to confirm email in auth system:', authUpdateError);
+          }
+        }
 
         const { data: { user: currentUser } } = await supabase.auth.getUser();
 
