@@ -52,6 +52,8 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
+    passwordConfirm: '',
     role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
     isVerified: false,
     status: 'active',
@@ -106,6 +108,8 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
       setFormData({
         name: editUser.name,
         email: '',
+        password: '',
+        passwordConfirm: '',
         role: editUser.role,
         isVerified: editUser.isVerified,
         status: editUser.status,
@@ -114,6 +118,8 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
       setFormData({
         name: '',
         email: '',
+        password: '',
+        passwordConfirm: '',
         role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
         isVerified: false,
         status: 'active',
@@ -139,6 +145,24 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     event.preventDefault();
     setLoading(true);
     setError('');
+
+    if (!editUser) {
+      if (!formData.password) {
+        setError('Password is required');
+        setLoading(false);
+        return;
+      }
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters');
+        setLoading(false);
+        return;
+      }
+      if (formData.password !== formData.passwordConfirm) {
+        setError('Passwords do not match');
+        setLoading(false);
+        return;
+      }
+    }
 
     try {
       let userId: string;
@@ -180,22 +204,36 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
           }
         }
       } else {
-        const { data: newUser, error: insertError } = await supabase
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              name: formData.name,
+              role: formData.role,
+            },
+          },
+        });
+
+        if (authError) throw authError;
+        if (!authData.user) throw new Error('Failed to create user');
+
+        userId = authData.user.id;
+
+        const { error: insertError } = await supabase
           .from('users')
           .insert([
             {
+              id: userId,
               name: formData.name,
               email: formData.email,
               role: formData.role,
               is_verified: formData.isVerified,
               status: formData.status,
             },
-          ])
-          .select()
-          .single();
+          ]);
 
         if (insertError) throw insertError;
-        userId = newUser.id;
 
         if (isManagerRole && selectedProjects.length > 0) {
           const memberships = selectedProjects.map(projectId => ({
@@ -215,6 +253,8 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
       setFormData({
         name: '',
         email: '',
+        password: '',
+        passwordConfirm: '',
         role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
         isVerified: false,
         status: 'active',
@@ -254,15 +294,38 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
             />
 
             {!editUser && (
-              <TextField
-                required
-                fullWidth
-                type="email"
-                label="Email"
-                value={formData.email}
-                onChange={handleChange('email')}
-                disabled={loading}
-              />
+              <>
+                <TextField
+                  required
+                  fullWidth
+                  type="email"
+                  label="Email"
+                  value={formData.email}
+                  onChange={handleChange('email')}
+                  disabled={loading}
+                />
+
+                <TextField
+                  required
+                  fullWidth
+                  type="password"
+                  label="Password"
+                  value={formData.password}
+                  onChange={handleChange('password')}
+                  disabled={loading}
+                  helperText="Minimum 6 characters"
+                />
+
+                <TextField
+                  required
+                  fullWidth
+                  type="password"
+                  label="Confirm Password"
+                  value={formData.passwordConfirm}
+                  onChange={handleChange('passwordConfirm')}
+                  disabled={loading}
+                />
+              </>
             )}
 
             <TextField
