@@ -52,6 +52,8 @@ export function GoogleSearchConsoleConfig() {
   const [error, setError] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [debugLog, setDebugLog] = useState<string[]>([]);
+  const [testResults, setTestResults] = useState<any>(null);
+  const [isTestLoading, setIsTestLoading] = useState(false);
 
   console.log('[GSC Init] Initial state set - isLoading:', true, 'isConnecting:', false);
 
@@ -414,9 +416,96 @@ export function GoogleSearchConsoleConfig() {
       setProperties([]);
       setIsConnected(false);
       setAccessToken(null);
+      setTestResults(null);
     } catch (err) {
       console.error('Error disconnecting:', err);
       setError('Failed to disconnect. Please try again.');
+    }
+  };
+
+  const handleTestApiRequest = async () => {
+    if (!accessToken) {
+      setError('No access token available');
+      return;
+    }
+
+    setIsTestLoading(true);
+    setError(null);
+    console.log('[GSC Test] Starting test API request');
+
+    try {
+      const response = await fetch(
+        'https://www.googleapis.com/webmasters/v3/sites',
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[GSC Test] Sites list response:', data);
+      const siteEntries = data.siteEntry || [];
+
+      const verifiedSites = siteEntries.filter(
+        (s: any) => s.permissionLevel !== 'siteUnverifiedUser' && s.siteUrl.startsWith('http')
+      );
+
+      console.log('[GSC Test] Verified sites:', verifiedSites);
+
+      const sitesWithSitemaps = await Promise.all(
+        verifiedSites.map(async (site: any) => {
+          try {
+            const sitemapsResponse = await fetch(
+              `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(site.siteUrl)}/sitemaps`,
+              {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                },
+              }
+            );
+
+            if (!sitemapsResponse.ok) {
+              console.error('[GSC Test] Failed to fetch sitemaps for', site.siteUrl);
+              return {
+                siteUrl: site.siteUrl,
+                permissionLevel: site.permissionLevel,
+                sitemaps: [],
+                error: `Failed to fetch sitemaps: ${sitemapsResponse.status}`,
+              };
+            }
+
+            const sitemapsData = await sitemapsResponse.json();
+            console.log('[GSC Test] Sitemaps for', site.siteUrl, ':', sitemapsData);
+
+            return {
+              siteUrl: site.siteUrl,
+              permissionLevel: site.permissionLevel,
+              sitemaps: sitemapsData.sitemap || [],
+            };
+          } catch (err) {
+            console.error('[GSC Test] Error fetching sitemaps for', site.siteUrl, err);
+            return {
+              siteUrl: site.siteUrl,
+              permissionLevel: site.permissionLevel,
+              sitemaps: [],
+              error: err instanceof Error ? err.message : 'Unknown error',
+            };
+          }
+        })
+      );
+
+      console.log('[GSC Test] Complete results:', sitesWithSitemaps);
+      setTestResults(sitesWithSitemaps);
+    } catch (err) {
+      console.error('[GSC Test] Error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to test API request');
+    } finally {
+      setIsTestLoading(false);
     }
   };
 
@@ -651,6 +740,20 @@ export function GoogleSearchConsoleConfig() {
                   >
                     Disconnect
                   </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={handleTestApiRequest}
+                    disabled={isTestLoading}
+                    startIcon={
+                      isTestLoading ? (
+                        <Iconify icon="svg-spinners:3-dots-fade" />
+                      ) : (
+                        <Iconify icon="eva:code-outline" />
+                      )
+                    }
+                  >
+                    {isTestLoading ? 'Testing...' : 'Test API Request'}
+                  </Button>
                   {properties.length > 0 && (
                     <Button
                       variant="contained"
@@ -673,6 +776,90 @@ export function GoogleSearchConsoleConfig() {
           </Stack>
         </CardContent>
       </Card>
+
+      {testResults && (
+        <Card sx={{ mt: 3 }}>
+          <CardContent>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+              <Typography variant="h6">API Test Results</Typography>
+              <Button
+                size="small"
+                onClick={() => setTestResults(null)}
+                startIcon={<Iconify icon="eva:close-fill" />}
+              >
+                Clear
+              </Button>
+            </Stack>
+
+            {testResults.length === 0 ? (
+              <Alert severity="info">No verified sites found</Alert>
+            ) : (
+              <Box sx={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
+                      <th style={{ textAlign: 'left', padding: '12px', fontWeight: 600 }}>
+                        Verified Site
+                      </th>
+                      <th style={{ textAlign: 'left', padding: '12px', fontWeight: 600 }}>
+                        Permission
+                      </th>
+                      <th style={{ textAlign: 'left', padding: '12px', fontWeight: 600 }}>
+                        Sitemaps
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {testResults.map((site: any, index: number) => (
+                      <tr
+                        key={index}
+                        style={{
+                          borderBottom: '1px solid #f0f0f0',
+                          backgroundColor: index % 2 === 0 ? '#fafafa' : 'transparent',
+                        }}
+                      >
+                        <td style={{ padding: '12px', verticalAlign: 'top' }}>
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                            {site.siteUrl}
+                          </Typography>
+                        </td>
+                        <td style={{ padding: '12px', verticalAlign: 'top' }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {site.permissionLevel}
+                          </Typography>
+                        </td>
+                        <td style={{ padding: '12px', verticalAlign: 'top' }}>
+                          {site.error ? (
+                            <Typography variant="body2" color="error">
+                              {site.error}
+                            </Typography>
+                          ) : site.sitemaps.length === 0 ? (
+                            <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+                              None
+                            </Typography>
+                          ) : (
+                            <Stack spacing={0.5}>
+                              {site.sitemaps.map((sitemap: any, sIndex: number) => (
+                                <Typography
+                                  key={sIndex}
+                                  variant="body2"
+                                  sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}
+                                >
+                                  {sitemap.path}
+                                </Typography>
+                              ))}
+                            </Stack>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </DashboardContent>
   );
 }
