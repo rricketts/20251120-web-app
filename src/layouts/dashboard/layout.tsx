@@ -24,7 +24,6 @@ import { MenuButton } from '../components/menu-button';
 import { HeaderSection } from '../core/header-section';
 import { LayoutSection } from '../core/layout-section';
 import { AccountPopover } from '../components/account-popover';
-import { SvgColor } from 'src/components/svg-color';
 
 import type { MainSectionProps } from '../core/main-section';
 import type { HeaderSectionProps } from '../core/header-section';
@@ -55,22 +54,7 @@ export function DashboardLayout({
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-  const navigationData = useMemo(() => {
-    const canSeeUsers = userRole !== 'viewer';
-
-    const data = canSeeUsers
-      ? [
-          ...navData,
-          {
-            title: 'Users',
-            path: '/user',
-            icon: <SvgColor src="/assets/icons/navbar/ic-user.svg" />,
-          },
-        ]
-      : navData;
-
-    return data;
-  }, [userRole]);
+  const navigationData = useMemo(() => navData, []);
 
   useEffect(() => {
     if (!loading && !user) {
