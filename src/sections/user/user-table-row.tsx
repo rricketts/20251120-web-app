@@ -21,7 +21,6 @@ export type UserProps = {
   email: string;
   role: string;
   status: string;
-  isActive: boolean;
   lastLoginAt?: string;
 };
 
@@ -74,15 +73,13 @@ export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: U
           </Box>
         </TableCell>
 
+        <TableCell>
+          <Label color={(row.status === 'banned' && 'error') || 'success'}>{row.status}</Label>
+        </TableCell>
+
         <TableCell>{row.email}</TableCell>
 
         <TableCell>{row.role}</TableCell>
-
-        <TableCell align="center">
-          <Label color={row.isActive ? 'success' : 'error'}>
-            {row.isActive ? 'Active' : 'Inactive'}
-          </Label>
-        </TableCell>
 
         <TableCell>
           {row.lastLoginAt ? new Date(row.lastLoginAt).toLocaleString('en-US', {
@@ -92,10 +89,6 @@ export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: U
             hour: '2-digit',
             minute: '2-digit',
           }) : 'Never'}
-        </TableCell>
-
-        <TableCell>
-          <Label color={(row.status === 'banned' && 'error') || 'success'}>{row.status}</Label>
         </TableCell>
 
         <TableCell align="right">

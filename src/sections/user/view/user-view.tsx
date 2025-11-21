@@ -37,7 +37,6 @@ function convertUserToUserProps(user: User): UserProps {
     name: user.name,
     email: user.email,
     role: user.role,
-    isActive: user.is_active !== undefined ? user.is_active : true,
     lastLoginAt: user.last_login_at,
     status: user.status,
   };
@@ -203,11 +202,10 @@ export function UserView() {
                 }
                 headLabel={[
                   { id: 'name', label: 'Name' },
+                  { id: 'status', label: 'Status' },
                   { id: 'email', label: 'Email' },
                   { id: 'role', label: 'Role' },
-                  { id: 'isActive', label: 'Active', align: 'center' },
                   { id: 'lastLoginAt', label: 'Last Login', align: 'left' },
-                  { id: 'status', label: 'Status' },
                   { id: '' },
                 ]}
               />

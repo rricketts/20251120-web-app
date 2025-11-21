@@ -52,7 +52,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     password: '',
     passwordConfirm: '',
     role: 'viewer',
-    isActive: true,
     status: 'active',
   });
 
@@ -115,7 +114,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         password: '',
         passwordConfirm: '',
         role: editUser.role,
-        isActive: editUser.isActive !== undefined ? editUser.isActive : true,
         status: editUser.status,
       });
     } else {
@@ -125,7 +123,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         password: '',
         passwordConfirm: '',
         role: defaultRole,
-        isActive: true,
         status: 'active',
       });
     }
@@ -138,12 +135,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     }));
   };
 
-  const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      isActive: event.target.checked,
-    }));
-  };
 
   const handleChangePasswordCheckbox = (event: React.ChangeEvent<HTMLInputElement>) => {
     setChangePassword(event.target.checked);
@@ -189,7 +180,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
           .update({
             name: formData.name,
             role: formData.role,
-            is_active: formData.isActive,
             status: formData.status,
           })
           .eq('id', editUser.id);
@@ -290,7 +280,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               name: formData.name,
               email: formData.email,
               role: formData.role,
-              is_active: formData.isActive,
               status: formData.status,
               created_by: currentUser?.id,
             },
@@ -319,7 +308,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         password: '',
         passwordConfirm: '',
         role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'viewer',
-        isActive: true,
         status: 'active',
       });
       setSelectedProjects([]);
@@ -422,16 +410,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               </>
             )}
 
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={formData.isActive}
-                  onChange={handleCheckboxChange}
-                  disabled={loading}
-                />
-              }
-              label="Active"
-            />
 
             {isManagerRole && (
               <FormControl fullWidth>
