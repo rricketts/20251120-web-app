@@ -83,6 +83,9 @@ export function IntegrationsView() {
     );
   };
 
+  const activeIntegrations = integrations.filter(i => !i.comingSoon);
+  const comingSoonIntegrations = integrations.filter(i => i.comingSoon);
+
   return (
     <DashboardContent>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
@@ -90,7 +93,7 @@ export function IntegrationsView() {
       </Stack>
 
       <Grid container spacing={3}>
-        {integrations.map((integration) => (
+        {activeIntegrations.map((integration) => (
           <Grid key={integration.id} item xs={12} sm={6} md={4}>
             <Card>
               <CardContent>
@@ -110,12 +113,7 @@ export function IntegrationsView() {
                       <Iconify icon={integration.icon} width={32} />
                     </Box>
                     <Box sx={{ flex: 1 }}>
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <Typography variant="h6">{integration.name}</Typography>
-                        {integration.comingSoon && (
-                          <Chip label="Coming Soon" size="small" color="default" />
-                        )}
-                      </Stack>
+                      <Typography variant="h6">{integration.name}</Typography>
                     </Box>
                   </Box>
 
@@ -123,32 +121,76 @@ export function IntegrationsView() {
                     {integration.description}
                   </Typography>
 
-                  {!integration.comingSoon && (
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={integration.connected}
-                            onChange={() => handleToggle(integration.id)}
-                          />
-                        }
-                        label={integration.connected ? 'Connected' : 'Disconnected'}
-                      />
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        disabled={!integration.connected}
-                      >
-                        Configure
-                      </Button>
-                    </Stack>
-                  )}
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={integration.connected}
+                          onChange={() => handleToggle(integration.id)}
+                        />
+                      }
+                      label={integration.connected ? 'Connected' : 'Disconnected'}
+                    />
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={!integration.connected}
+                    >
+                      Configure
+                    </Button>
+                  </Stack>
                 </Stack>
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
+
+      {comingSoonIntegrations.length > 0 && (
+        <>
+          <Typography variant="h5" sx={{ mt: 5, mb: 3 }}>
+            Coming Soon
+          </Typography>
+
+          <Grid container spacing={3}>
+            {comingSoonIntegrations.map((integration) => (
+              <Grid key={integration.id} item xs={12} sm={6} md={4}>
+                <Card sx={{ opacity: 0.7 }}>
+                  <CardContent>
+                    <Stack spacing={2}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box
+                          sx={{
+                            width: 48,
+                            height: 48,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 1.5,
+                            bgcolor: 'background.neutral',
+                          }}
+                        >
+                          <Iconify icon={integration.icon} width={32} />
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <Typography variant="h6">{integration.name}</Typography>
+                            <Chip label="Coming Soon" size="small" color="default" />
+                          </Stack>
+                        </Box>
+                      </Box>
+
+                      <Typography variant="body2" color="text.secondary">
+                        {integration.description}
+                      </Typography>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </>
+      )}
     </DashboardContent>
   );
 }
