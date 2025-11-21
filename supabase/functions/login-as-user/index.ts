@@ -124,12 +124,29 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data: authData, error: signInError } = await supabaseAdmin.auth.admin.generateLink({
+    const { data: targetUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(targetUserId);
+
+    if (getUserError || !targetUser.user) {
+      return new Response(
+        JSON.stringify({ error: 'Failed to get target user' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const redirectUrl = `${req.headers.get('origin') || supabaseUrl}/`;
+
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
-      email: (await supabaseAdmin.auth.admin.getUserById(targetUserId)).data.user?.email || '',
+      email: targetUser.user.email || '',
+      options: {
+        redirectTo: redirectUrl,
+      },
     });
 
-    if (signInError || !authData) {
+    if (linkError || !linkData) {
       return new Response(
         JSON.stringify({ error: 'Failed to generate login link' }),
         {
@@ -140,9 +157,9 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        loginUrl: authData.properties?.action_link,
-        success: true 
+      JSON.stringify({
+        loginUrl: linkData.properties?.action_link,
+        success: true
       }),
       {
         status: 200,
