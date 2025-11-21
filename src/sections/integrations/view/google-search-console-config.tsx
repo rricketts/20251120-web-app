@@ -44,9 +44,14 @@ export function GoogleSearchConsoleConfig() {
   const [debugLog, setDebugLog] = useState<string[]>([]);
 
   const addDebugLog = (message: string) => {
-    console.log(`[GSC Debug] ${message}`);
-    setDebugLog(prev => [...prev, `${new Date().toISOString()}: ${message}`]);
+    const logMessage = `${new Date().toISOString()}: ${message}`;
+    console.log(`[GSC Debug] ${logMessage}`);
+    setDebugLog(prev => [...prev, logMessage]);
   };
+
+  useEffect(() => {
+    addDebugLog(`State Update - isLoading: ${isLoading}, isConnecting: ${isConnecting}, isConnected: ${isConnected}, properties: ${properties.length}, accessToken: ${accessToken ? 'present' : 'null'}`);
+  }, [isLoading, isConnecting, isConnected, properties, accessToken]);
 
   useEffect(() => {
     const handleInit = async () => {
@@ -225,17 +230,20 @@ export function GoogleSearchConsoleConfig() {
 
       addDebugLog('Credentials saved successfully');
       setIsConnected(true);
+      addDebugLog('Setting isConnected to true');
       addDebugLog('Cleaning up URL');
       window.history.replaceState({}, '', window.location.pathname);
+      addDebugLog('URL cleaned, should render main content now');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       addDebugLog(`OAuth error: ${errorMessage}`);
       console.error('OAuth error:', err);
       setError(`Failed to connect to Google Search Console: ${errorMessage}`);
     } finally {
-      addDebugLog('OAuth callback complete');
+      addDebugLog('OAuth callback complete - setting isConnecting=false, isLoading=false');
       setIsConnecting(false);
       setIsLoading(false);
+      addDebugLog(`Final state after OAuth - isLoading: ${false}, isConnecting: ${false}`);
     }
   };
 
@@ -262,13 +270,16 @@ export function GoogleSearchConsoleConfig() {
       const data = await response.json();
       const siteEntries = data.siteEntry || [];
       addDebugLog(`Found ${siteEntries.length} properties`);
+      addDebugLog(`Properties data: ${JSON.stringify(siteEntries.map((s: any) => s.siteUrl))}`);
 
-      setProperties(
-        siteEntries.map((site: any) => ({
-          url: site.siteUrl,
-          permissionLevel: site.permissionLevel,
-        }))
-      );
+      const mappedProperties = siteEntries.map((site: any) => ({
+        url: site.siteUrl,
+        permissionLevel: site.permissionLevel,
+      }));
+
+      addDebugLog(`Setting ${mappedProperties.length} properties in state`);
+      setProperties(mappedProperties);
+      addDebugLog('Properties set in state');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       addDebugLog(`Error fetching properties: ${errorMessage}`);
@@ -326,7 +337,10 @@ export function GoogleSearchConsoleConfig() {
     }
   };
 
+  console.log('[GSC Render] Rendering decision - isLoading:', isLoading, 'isConnecting:', isConnecting, 'selectedProject:', !!selectedProject);
+
   if (!selectedProject) {
+    console.log('[GSC Render] Showing no project warning');
     return (
       <DashboardContent>
         <Alert severity="warning">
@@ -337,6 +351,7 @@ export function GoogleSearchConsoleConfig() {
   }
 
   if (isLoading || isConnecting) {
+    console.log('[GSC Render] Showing loading spinner');
     return (
       <DashboardContent>
         <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 400 }}>
@@ -349,6 +364,7 @@ export function GoogleSearchConsoleConfig() {
     );
   }
 
+  console.log('[GSC Render] Rendering main content - isConnected:', isConnected, 'properties:', properties.length);
   return (
     <DashboardContent>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
