@@ -83,9 +83,32 @@ export function GoogleSearchConsoleConfig() {
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
       const errorParam = params.get('error');
+      const state = params.get('state');
 
       console.log('[GSC UseEffect] Parsed URL params - code:', code?.substring(0, 20) + '...', 'error:', errorParam);
       addDebugLog(`URL params - code: ${code ? 'present' : 'none'}, error: ${errorParam || 'none'}`);
+
+      if (code || errorParam) {
+        if (window.opener && !window.opener.closed) {
+          console.log('[GSC UseEffect] This is OAuth popup, sending message to parent');
+          addDebugLog('Detected OAuth popup, sending result to parent window');
+
+          window.opener.postMessage(
+            {
+              type: 'GOOGLE_OAUTH_RESULT',
+              code,
+              error: errorParam,
+              state,
+            },
+            window.location.origin
+          );
+
+          window.close();
+          return;
+        }
+
+        console.log('[GSC UseEffect] This is main window with OAuth result');
+      }
 
       if (errorParam) {
         console.log('[GSC UseEffect] Error param detected, showing error');
@@ -101,6 +124,7 @@ export function GoogleSearchConsoleConfig() {
         addDebugLog('OAuth code detected, starting callback handler');
         await handleOAuthCallback(code);
         console.log('[GSC UseEffect] handleOAuthCallback completed');
+        window.history.replaceState({}, '', window.location.pathname);
         return;
       }
 
@@ -120,6 +144,46 @@ export function GoogleSearchConsoleConfig() {
       console.error('[GSC UseEffect] Error in handleInit:', err);
       addDebugLog(`Error in handleInit: ${err.message}`);
     });
+
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) {
+        console.log('[GSC Message] Ignoring message from different origin:', event.origin);
+        return;
+      }
+
+      if (event.data.type === 'GOOGLE_OAUTH_RESULT') {
+        console.log('[GSC Message] Received OAuth result from popup');
+        addDebugLog('Received OAuth result from popup window');
+
+        const { code, error, state } = event.data;
+        const savedState = sessionStorage.getItem('oauth_state');
+
+        if (state !== savedState) {
+          console.error('[GSC Message] State mismatch!');
+          addDebugLog('OAuth state mismatch - possible security issue');
+          setError('OAuth state mismatch. Please try again.');
+          setIsConnecting(false);
+          return;
+        }
+
+        if (error) {
+          console.log('[GSC Message] OAuth error:', error);
+          addDebugLog(`OAuth error: ${error}`);
+          setError('Authorization was cancelled or failed');
+          setIsConnecting(false);
+          return;
+        }
+
+        if (code) {
+          console.log('[GSC Message] Processing OAuth code');
+          addDebugLog('Processing OAuth code from popup');
+          await handleOAuthCallback(code);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   useEffect(() => {
@@ -205,8 +269,41 @@ export function GoogleSearchConsoleConfig() {
     });
 
     const authUrl = `${OAUTH_CONFIG.authUrl}?${authParams.toString()}`;
-    addDebugLog(`Redirecting to: ${authUrl}`);
-    window.location.href = authUrl;
+    addDebugLog(`Opening OAuth window: ${authUrl}`);
+
+    const width = 600;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    const popup = window.open(
+      authUrl,
+      'google-oauth',
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+    );
+
+    if (popup) {
+      addDebugLog('OAuth popup opened successfully');
+      setIsConnecting(true);
+
+      const checkPopup = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkPopup);
+          addDebugLog('OAuth popup was closed');
+
+          const urlParams = new URLSearchParams(window.location.search);
+          const code = urlParams.get('code');
+
+          if (!code) {
+            setIsConnecting(false);
+            addDebugLog('No OAuth code found after popup closed');
+          }
+        }
+      }, 500);
+    } else {
+      addDebugLog('Failed to open OAuth popup - popup blocked?');
+      setError('Please allow popups for this site to connect to Google Search Console');
+    }
   };
 
   const handleOAuthCallback = async (code: string) => {
