@@ -10,6 +10,11 @@ import DialogContent from '@mui/material/DialogContent';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import Chip from '@mui/material/Chip';
+import OutlinedInput from '@mui/material/OutlinedInput';
 
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/contexts/auth-context';
@@ -22,6 +27,11 @@ type UserFormDialogProps = {
   onSuccess: () => void;
   editUser?: UserProps | null;
   currentUserRole?: string;
+};
+
+type Project = {
+  id: string;
+  name: string;
 };
 
 const ALL_ROLES = ['admin', 'manager', 'user'];
@@ -47,10 +57,51 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     status: 'active',
   });
 
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [availableProjects, setAvailableProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const isManagerRole = currentUserRole === 'manager';
+
   useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const { data: projectsData, error: projectsError } = await supabase
+          .from('projects')
+          .select('id, name')
+          .order('name', { ascending: true });
+
+        if (projectsError) throw projectsError;
+        setAvailableProjects(projectsData || []);
+      } catch (err) {
+        console.error('Error fetching projects:', err);
+      }
+    };
+
+    const fetchUserProjects = async () => {
+      if (editUser) {
+        try {
+          const { data: memberData, error: memberError } = await supabase
+            .from('project_members')
+            .select('project_id')
+            .eq('user_id', editUser.id);
+
+          if (memberError) throw memberError;
+          setSelectedProjects((memberData || []).map(m => m.project_id));
+        } catch (err) {
+          console.error('Error fetching user projects:', err);
+        }
+      } else {
+        setSelectedProjects([]);
+      }
+    };
+
+    if (open && isManagerRole) {
+      fetchProjects();
+      fetchUserProjects();
+    }
+
     if (editUser) {
       setFormData({
         name: editUser.name,
@@ -68,7 +119,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         status: 'active',
       });
     }
-  }, [editUser, open, availableRoles]);
+  }, [editUser, open, availableRoles, isManagerRole]);
 
   const handleChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
@@ -90,7 +141,10 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     setError('');
 
     try {
+      let userId: string;
+
       if (editUser) {
+        userId = editUser.id;
         const { error: updateError } = await supabase
           .from('users')
           .update({
@@ -102,18 +156,60 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
           .eq('id', editUser.id);
 
         if (updateError) throw updateError;
+
+        if (isManagerRole) {
+          const { error: deleteError } = await supabase
+            .from('project_members')
+            .delete()
+            .eq('user_id', userId);
+
+          if (deleteError) throw deleteError;
+
+          if (selectedProjects.length > 0) {
+            const memberships = selectedProjects.map(projectId => ({
+              project_id: projectId,
+              user_id: userId,
+              role: 'member',
+            }));
+
+            const { error: insertError } = await supabase
+              .from('project_members')
+              .insert(memberships);
+
+            if (insertError) throw insertError;
+          }
+        }
       } else {
-        const { error: insertError } = await supabase.from('users').insert([
-          {
-            name: formData.name,
-            email: formData.email,
-            role: formData.role,
-            is_verified: formData.isVerified,
-            status: formData.status,
-          },
-        ]);
+        const { data: newUser, error: insertError } = await supabase
+          .from('users')
+          .insert([
+            {
+              name: formData.name,
+              email: formData.email,
+              role: formData.role,
+              is_verified: formData.isVerified,
+              status: formData.status,
+            },
+          ])
+          .select()
+          .single();
 
         if (insertError) throw insertError;
+        userId = newUser.id;
+
+        if (isManagerRole && selectedProjects.length > 0) {
+          const memberships = selectedProjects.map(projectId => ({
+            project_id: projectId,
+            user_id: userId,
+            role: 'member',
+          }));
+
+          const { error: memberError } = await supabase
+            .from('project_members')
+            .insert(memberships);
+
+          if (memberError) throw memberError;
+        }
       }
 
       setFormData({
@@ -123,6 +219,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         isVerified: false,
         status: 'active',
       });
+      setSelectedProjects([]);
 
       onSuccess();
       onClose();
@@ -194,6 +291,42 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               }
               label="Verified"
             />
+
+            {isManagerRole && (
+              <FormControl fullWidth>
+                <InputLabel>Assign to Projects</InputLabel>
+                <Select
+                  multiple
+                  value={selectedProjects}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setSelectedProjects(typeof value === 'string' ? value.split(',') : value);
+                  }}
+                  input={<OutlinedInput label="Assign to Projects" />}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((projectId) => {
+                        const project = availableProjects.find(p => p.id === projectId);
+                        return (
+                          <Chip
+                            key={projectId}
+                            label={project?.name || projectId}
+                            size="small"
+                          />
+                        );
+                      })}
+                    </Box>
+                  )}
+                  disabled={loading}
+                >
+                  {availableProjects.map((project) => (
+                    <MenuItem key={project.id} value={project.id}>
+                      {project.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
 
             {error && (
               <Box sx={{ color: 'error.main', fontSize: '0.875rem' }}>
