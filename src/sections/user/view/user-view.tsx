@@ -48,6 +48,7 @@ export function UserView() {
 
   const [filterName, setFilterName] = useState('');
   const [users, setUsers] = useState<UserProps[]>([]);
+  const [loading, setLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [editUser, setEditUser] = useState<UserProps | null>(null);
 
