@@ -104,31 +104,48 @@ export function GoogleSearchConsoleConfig() {
           console.log('[GSC UseEffect] window.opener.closed:', window.opener.closed);
         }
 
-        if (window.opener && !window.opener.closed) {
-          console.log('[GSC UseEffect] ✓ This IS a popup window - sending message to parent');
-          addDebugLog('Detected OAuth popup, sending result to parent window');
+        const isPopup = window.opener && window.name === 'google-oauth';
+        console.log('[GSC UseEffect] Is popup?', isPopup);
+        console.log('[GSC UseEffect] window.name:', window.name);
+
+        if (isPopup) {
+          console.log('[GSC UseEffect] ✓ This IS a popup window - communicating with parent');
+          addDebugLog('Detected OAuth popup, communicating result to parent');
 
           try {
-            const message = {
-              type: 'GOOGLE_OAUTH_RESULT',
+            const oauthResult = {
               code,
               error: errorParam,
               state,
+              timestamp: Date.now(),
             };
-            console.log('[GSC UseEffect] Message to send:', message);
-            console.log('[GSC UseEffect] Target origin:', window.location.origin);
+            console.log('[GSC UseEffect] OAuth result to save:', oauthResult);
 
-            window.opener.postMessage(message, window.location.origin);
-            console.log('[GSC UseEffect] ✓ Message sent successfully');
-            addDebugLog('Message sent to parent window successfully');
+            localStorage.setItem('gsc_oauth_result', JSON.stringify(oauthResult));
+            console.log('[GSC UseEffect] ✓ Saved OAuth result to localStorage');
+            addDebugLog('Saved OAuth result to localStorage');
+
+            if (window.opener && !window.opener.closed) {
+              console.log('[GSC UseEffect] Trying postMessage as well...');
+              window.opener.postMessage(
+                {
+                  type: 'GOOGLE_OAUTH_RESULT',
+                  code,
+                  error: errorParam,
+                  state,
+                },
+                window.location.origin
+              );
+              console.log('[GSC UseEffect] ✓ postMessage sent');
+            }
 
             setTimeout(() => {
-              console.log('[GSC UseEffect] Closing popup after 100ms delay');
+              console.log('[GSC UseEffect] Closing popup after 200ms delay');
               window.close();
-            }, 100);
+            }, 200);
           } catch (err) {
-            console.error('[GSC UseEffect] ✗ Error sending message:', err);
-            addDebugLog(`Error sending message to parent: ${err}`);
+            console.error('[GSC UseEffect] ✗ Error communicating with parent:', err);
+            addDebugLog(`Error communicating with parent: ${err}`);
           }
           return;
         } else {
@@ -219,12 +236,63 @@ export function GoogleSearchConsoleConfig() {
       }
     };
 
+    const handleStorageChange = async (event: StorageEvent) => {
+      if (event.key === 'gsc_oauth_result' && event.newValue) {
+        console.log('[GSC Storage] ========== OAUTH RESULT FROM LOCALSTORAGE ==========');
+        console.log('[GSC Storage] Storage event detected');
+        addDebugLog('Received OAuth result from localStorage');
+
+        try {
+          const result = JSON.parse(event.newValue);
+          console.log('[GSC Storage] Parsed result:', result);
+          addDebugLog(`OAuth data: code=${result.code ? 'present' : 'none'}, error=${result.error || 'none'}`);
+
+          const { code, error, state } = result;
+          const savedState = sessionStorage.getItem('oauth_state');
+
+          console.log('[GSC Storage] State comparison - received:', state, 'saved:', savedState);
+
+          localStorage.removeItem('gsc_oauth_result');
+          console.log('[GSC Storage] Cleared localStorage result');
+
+          if (state !== savedState) {
+            console.error('[GSC Storage] State mismatch!');
+            addDebugLog('OAuth state mismatch - possible security issue');
+            setError('OAuth state mismatch. Please try again.');
+            setIsConnecting(false);
+            return;
+          }
+
+          if (error) {
+            console.log('[GSC Storage] OAuth error:', error);
+            addDebugLog(`OAuth error: ${error}`);
+            setError('Authorization was cancelled or failed');
+            setIsConnecting(false);
+            return;
+          }
+
+          if (code) {
+            console.log('[GSC Storage] Processing OAuth code from localStorage');
+            addDebugLog('Processing OAuth code from localStorage');
+            await handleOAuthCallback(code);
+          }
+        } catch (err) {
+          console.error('[GSC Storage] Error parsing OAuth result:', err);
+          addDebugLog(`Error parsing OAuth result: ${err}`);
+        }
+      }
+    };
+
     console.log('[GSC Message] Adding message event listener');
-    addDebugLog('Message listener registered for OAuth popup communication');
+    console.log('[GSC Storage] Adding storage event listener');
+    addDebugLog('Message and storage listeners registered for OAuth popup communication');
     window.addEventListener('message', handleMessage);
+    window.addEventListener('storage', handleStorageChange);
     return () => {
       console.log('[GSC Message] Removing message event listener');
+      console.log('[GSC Storage] Removing storage event listener');
       window.removeEventListener('message', handleMessage);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
