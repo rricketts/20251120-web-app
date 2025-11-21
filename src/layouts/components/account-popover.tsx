@@ -28,9 +28,16 @@ export type AccountPopoverProps = IconButtonProps & {
 
 export function AccountPopover({ data = [], sx, ...other }: AccountPopoverProps) {
   const router = useRouter();
-  const { signOut, userData } = useAuth();
+  const { signOut, userData, userRole } = useAuth();
 
   const pathname = usePathname();
+
+  const filteredData = data.filter((item) => {
+    if (item.href === '/user') {
+      return userRole === 'admin' || userRole === 'manager';
+    }
+    return true;
+  });
 
   const [openPopover, setOpenPopover] = useState<HTMLButtonElement | null>(null);
 
@@ -118,7 +125,7 @@ export function AccountPopover({ data = [], sx, ...other }: AccountPopoverProps)
             },
           }}
         >
-          {data.map((option) => (
+          {filteredData.map((option) => (
             <MenuItem
               key={option.label}
               selected={option.href === pathname}
