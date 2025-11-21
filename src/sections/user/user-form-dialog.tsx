@@ -294,6 +294,22 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
             <TextField
               required
               fullWidth
+              select
+              label="Role"
+              value={formData.role}
+              onChange={handleChange('role')}
+              disabled={loading}
+            >
+              {availableRoles.map((role) => (
+                <MenuItem key={role} value={role}>
+                  {role.charAt(0).toUpperCase() + role.slice(1)}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              required
+              fullWidth
               label="Name"
               value={formData.name}
               onChange={handleChange('name')}
@@ -334,22 +350,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
                 />
               </>
             )}
-
-            <TextField
-              required
-              fullWidth
-              select
-              label="Role"
-              value={formData.role}
-              onChange={handleChange('role')}
-              disabled={loading}
-            >
-              {availableRoles.map((role) => (
-                <MenuItem key={role} value={role}>
-                  {role.charAt(0).toUpperCase() + role.slice(1)}
-                </MenuItem>
-              ))}
-            </TextField>
 
             <FormControlLabel
               control={

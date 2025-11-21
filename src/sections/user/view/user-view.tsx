@@ -73,7 +73,7 @@ export function UserView() {
       let query = supabase.from('users').select('*');
 
       if (userRole === 'manager') {
-        query = query.or(`created_by.eq.${currentUser.id},role.eq.manager,role.eq.user`);
+        query = query.or(`created_by.eq.${currentUser.id},role.eq.user`);
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });
