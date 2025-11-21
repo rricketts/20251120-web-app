@@ -49,7 +49,7 @@ export function ProjectsView() {
       setLoading(true);
 
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('Current user:', user?.email, 'Role:', userRole);
+      console.log('Current user:', user?.email);
 
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
@@ -83,7 +83,7 @@ export function ProjectsView() {
     } finally {
       setLoading(false);
     }
-  }, [userRole]);
+  }, []);
 
   useEffect(() => {
     fetchProjects();
