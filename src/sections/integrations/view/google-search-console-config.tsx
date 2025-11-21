@@ -54,6 +54,8 @@ export function GoogleSearchConsoleConfig() {
   const [debugLog, setDebugLog] = useState<string[]>([]);
   const [testResults, setTestResults] = useState<any>(null);
   const [isTestLoading, setIsTestLoading] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(true);
+  const [networkLogs, setNetworkLogs] = useState<Array<{timestamp: string, type: string, message: string}>>([]);
 
   console.log('[GSC Init] Initial state set - isLoading:', true, 'isConnecting:', false);
 
@@ -61,6 +63,12 @@ export function GoogleSearchConsoleConfig() {
     const logMessage = `${new Date().toISOString()}: ${message}`;
     console.log(`[GSC Debug] ${logMessage}`);
     setDebugLog(prev => [...prev, logMessage]);
+  };
+
+  const addNetworkLog = (type: string, message: string) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[GSC Network] [${type}] ${message}`);
+    setNetworkLogs(prev => [...prev, { timestamp, type, message }]);
   };
 
   useEffect(() => {
@@ -217,6 +225,9 @@ export function GoogleSearchConsoleConfig() {
       console.log('[GSC OAuth] API URL:', apiUrl);
 
       console.log('[GSC OAuth] Making fetch request...');
+      addNetworkLog('REQUEST', `POST ${apiUrl}`);
+      addNetworkLog('PAYLOAD', `code=${code.substring(0, 20)}..., redirectUri=${OAUTH_CONFIG.redirectUri}`);
+
       const tokenResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -231,10 +242,12 @@ export function GoogleSearchConsoleConfig() {
 
       console.log('[GSC OAuth] Token response received - status:', tokenResponse.status);
       addDebugLog(`Token response status: ${tokenResponse.status}`);
+      addNetworkLog('RESPONSE', `Status: ${tokenResponse.status} ${tokenResponse.statusText}`);
 
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
         addDebugLog(`Token exchange failed: ${errorText}`);
+        addNetworkLog('ERROR', `Token exchange failed: ${errorText}`);
         throw new Error('Failed to exchange code for token');
       }
 
@@ -280,6 +293,8 @@ export function GoogleSearchConsoleConfig() {
       console.log('[GSC OAuth] Credentials to save:', JSON.stringify(credentialsToSave, null, 2));
       addDebugLog('Saving credentials to database');
       addDebugLog(`Credentials payload: ${JSON.stringify(credentialsToSave)}`);
+      addNetworkLog('DATABASE', 'UPSERT integration_credentials');
+      addNetworkLog('DB_PAYLOAD', `project_id: ${selectedProject.id}, type: google_search_console`);
 
       const { data: saveData, error: saveError } = await supabase
         .from('integration_credentials')
@@ -287,6 +302,8 @@ export function GoogleSearchConsoleConfig() {
           onConflict: 'project_id,integration_type',
         })
         .select();
+
+      addNetworkLog('DATABASE', `Result: ${saveError ? 'ERROR' : 'SUCCESS'}`);
 
       console.log('[GSC OAuth] Database save result:', { data: saveData, error: saveError });
       if (saveError) {
@@ -331,6 +348,9 @@ export function GoogleSearchConsoleConfig() {
     try {
       console.log('[GSC Fetch] Making request to Google Search Console API');
       addDebugLog('Fetching GSC properties from API');
+      addNetworkLog('REQUEST', 'GET https://www.googleapis.com/webmasters/v3/sites');
+      addNetworkLog('AUTH', `Bearer token (${token.length} chars)`);
+
       const response = await fetch(
         'https://www.googleapis.com/webmasters/v3/sites',
         {
@@ -342,6 +362,7 @@ export function GoogleSearchConsoleConfig() {
 
       console.log('[GSC Fetch] Response received - status:', response.status, 'statusText:', response.statusText);
       addDebugLog(`Properties response status: ${response.status}`);
+      addNetworkLog('RESPONSE', `Status: ${response.status} ${response.statusText}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -559,7 +580,70 @@ export function GoogleSearchConsoleConfig() {
             Configure Google Search Console for {selectedProject.name}
           </Typography>
         </Box>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => setShowDebugPanel(!showDebugPanel)}
+          startIcon={<Iconify icon={showDebugPanel ? 'eva:eye-off-fill' : 'eva:eye-fill'} />}
+        >
+          {showDebugPanel ? 'Hide' : 'Show'} Debug
+        </Button>
       </Stack>
+
+      {showDebugPanel && (
+        <Card sx={{ mb: 3, bgcolor: 'info.lighter', border: '2px solid', borderColor: 'info.main' }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ color: 'info.darker' }}>
+              Live Debug Panel
+            </Typography>
+            <Stack spacing={2}>
+              <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 1 }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ fontFamily: 'monospace' }}>
+                  Current State
+                </Typography>
+                <Stack spacing={0.5} sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                  <Box>isLoading: <strong>{String(isLoading)}</strong></Box>
+                  <Box>isConnecting: <strong>{String(isConnecting)}</strong></Box>
+                  <Box>isConnected: <strong>{String(isConnected)}</strong></Box>
+                  <Box>properties: <strong>{properties.length}</strong></Box>
+                  <Box>accessToken: <strong>{accessToken ? 'present' : 'null'}</strong></Box>
+                  <Box>selectedProject: <strong>{selectedProject ? selectedProject.name : 'null'}</strong></Box>
+                  <Box>error: <strong>{error || 'null'}</strong></Box>
+                </Stack>
+              </Box>
+
+              {networkLogs.length > 0 && (
+                <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 1 }}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ fontFamily: 'monospace' }}>
+                    Network Activity
+                  </Typography>
+                  <Box sx={{ maxHeight: 200, overflow: 'auto', fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                    {networkLogs.map((log, idx) => (
+                      <Box
+                        key={idx}
+                        sx={{
+                          mb: 0.5,
+                          p: 0.5,
+                          borderRadius: 0.5,
+                          bgcolor: log.type === 'ERROR' ? 'error.lighter' : 'background.neutral',
+                        }}
+                      >
+                        <Box component="span" sx={{ color: 'text.secondary' }}>
+                          [{log.timestamp.split('T')[1].substring(0, 12)}]
+                        </Box>{' '}
+                        <Box component="span" sx={{ fontWeight: 'bold', color: log.type === 'ERROR' ? 'error.main' : 'primary.main' }}>
+                          [{log.type}]
+                        </Box>{' '}
+                        {log.message}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
