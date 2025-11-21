@@ -3,13 +3,14 @@ import type { User, Session } from '@supabase/supabase-js';
 import { useState, useEffect, useContext, createContext } from 'react';
 
 import { supabase } from 'src/lib/supabase';
-import { getUserRoleByEmail } from 'src/lib/user-role';
+import { getUserDataByEmail, type UserData } from 'src/lib/user-role';
 
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   loading: boolean;
   userRole: string;
+  userData: UserData | null;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string>('user');
+  const [userData, setUserData] = useState<UserData | null>(null);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -30,8 +32,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentSession?.user ?? null);
 
       if (currentSession?.user?.email) {
-        const role = await getUserRoleByEmail(currentSession.user.email);
-        setUserRole(role);
+        const data = await getUserDataByEmail(currentSession.user.email);
+        setUserData(data);
+        setUserRole(data?.role || 'user');
       }
 
       setLoading(false);
@@ -46,10 +49,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentSession?.user ?? null);
 
       if (currentSession?.user?.email) {
-        const role = await getUserRoleByEmail(currentSession.user.email);
-        setUserRole(role);
+        const data = await getUserDataByEmail(currentSession.user.email);
+        setUserData(data);
+        setUserRole(data?.role || 'user');
       } else {
         setUserRole('user');
+        setUserData(null);
       }
 
       setLoading(false);
@@ -83,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     loading,
     userRole,
+    userData,
     signIn,
     signUp,
     signOut,
