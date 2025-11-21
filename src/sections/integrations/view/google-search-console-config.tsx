@@ -835,15 +835,9 @@ export function GoogleSearchConsoleConfig() {
                     variant="contained"
                     onClick={handleConnect}
                     disabled={isConnecting}
-                    startIcon={
-                      isConnecting ? (
-                        <Iconify icon="svg-spinners:3-dots-fade" />
-                      ) : (
-                        <Iconify icon="eva:link-2-fill" />
-                      )
-                    }
+                    startIcon={<Iconify icon="eva:link-2-fill" />}
                   >
-                    {isConnecting ? 'Connecting...' : 'Connect with Google'}
+                    Connect with Google
                   </Button>
                 </Stack>
               </>
