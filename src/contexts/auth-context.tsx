@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string>('user');
+  const [userRole, setUserRole] = useState<string>('viewer');
   const [userData, setUserData] = useState<UserData | null>(null);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentSession?.user?.email) {
         const data = await getUserDataByEmail(currentSession.user.email);
         setUserData(data);
-        setUserRole(data?.role || 'user');
+        setUserRole(data?.role || 'viewer');
       }
 
       setLoading(false);
@@ -51,9 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentSession?.user?.email) {
         const data = await getUserDataByEmail(currentSession.user.email);
         setUserData(data);
-        setUserRole(data?.role || 'user');
+        setUserRole(data?.role || 'viewer');
       } else {
-        setUserRole('user');
+        setUserRole('viewer');
         setUserData(null);
       }
 

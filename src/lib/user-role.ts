@@ -17,10 +17,10 @@ export async function getUserRole(userId: string): Promise<string> {
 
     if (error) throw error;
 
-    return data?.role || 'user';
+    return data?.role || 'viewer';
   } catch (error) {
     console.error('Error fetching user role:', error);
-    return 'user';
+    return 'viewer';
   }
 }
 
@@ -34,10 +34,10 @@ export async function getUserRoleByEmail(email: string): Promise<string> {
 
     if (error) throw error;
 
-    return data?.role || 'user';
+    return data?.role || 'viewer';
   } catch (error) {
     console.error('Error fetching user role:', error);
-    return 'user';
+    return 'viewer';
   }
 }
 

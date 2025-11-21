@@ -75,7 +75,7 @@ export function ProfileView() {
                       textTransform: 'capitalize',
                     }}
                   >
-                    {userData?.role || 'user'}
+                    {userData?.role || 'viewer'}
                   </Typography>
                 </Box>
               </Box>

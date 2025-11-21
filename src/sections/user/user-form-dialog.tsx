@@ -33,25 +33,25 @@ type Project = {
   name: string;
 };
 
-const ALL_ROLES = ['admin', 'manager', 'user'];
+const ALL_ROLES = ['admin', 'manager', 'viewer'];
 
 const getRolesForUser = (userRole: string) => {
   if (userRole === 'admin') {
     return ALL_ROLES;
   }
   if (userRole === 'manager') {
-    return ['manager', 'user'];
+    return ['manager', 'viewer'];
   }
   return [];
 };
 
-export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUserRole = 'user' }: UserFormDialogProps) {
+export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUserRole = 'viewer' }: UserFormDialogProps) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     passwordConfirm: '',
-    role: 'user',
+    role: 'viewer',
     isVerified: false,
     status: 'active',
   });
@@ -105,7 +105,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     fetchUserProjects();
 
     const roles = getRolesForUser(currentUserRole);
-    const defaultRole = roles.length > 0 ? roles[roles.length - 1] : 'user';
+    const defaultRole = roles.length > 0 ? roles[roles.length - 1] : 'viewer';
 
     if (editUser) {
       setFormData({
@@ -306,7 +306,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         email: '',
         password: '',
         passwordConfirm: '',
-        role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
+        role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'viewer',
         isVerified: false,
         status: 'active',
       });
