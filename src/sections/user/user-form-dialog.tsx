@@ -237,51 +237,37 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
           }
         }
       } else {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            data: {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('No active session');
+        }
+
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-user-email`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: formData.email,
+              password: formData.password,
               name: formData.name,
               role: formData.role,
-            },
-            emailRedirectTo: undefined,
-          },
-        });
-
-        if (authError) throw authError;
-        if (!authData.user) throw new Error('Failed to create user');
-
-        userId = authData.user.id;
-
-        if (formData.isVerified) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            try {
-              const response = await fetch(
-                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-user-email`,
-                {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${session.access_token}`,
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    userId: userId,
-                    verify: true,
-                  }),
-                }
-              );
-
-              if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Failed to verify email:', errorData);
-              }
-            } catch (error) {
-              console.error('Failed to call verify-user-email function:', error);
-            }
+              isVerified: formData.isVerified,
+              createUser: true,
+            }),
           }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create user');
         }
+
+        const responseData = await response.json();
+        userId = responseData.userId;
 
         const { data: { user: currentUser } } = await supabase.auth.getUser();
 

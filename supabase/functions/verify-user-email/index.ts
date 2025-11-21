@@ -76,7 +76,59 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { userId, verify } = await req.json();
+    const requestBody = await req.json();
+    const { userId, verify, createUser, email, password, name, role, isVerified } = requestBody;
+
+    if (createUser) {
+      if (!email || !password || !name || !role) {
+        return new Response(
+          JSON.stringify({ error: 'Missing required fields for user creation' }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      const { data: authData, error: createError } = await supabaseClient.auth.admin.createUser({
+        email: email,
+        password: password,
+        email_confirm: isVerified || false,
+        user_metadata: {
+          name: name,
+          role: role,
+        },
+      });
+
+      if (createError) {
+        console.error('Error creating user:', createError);
+        return new Response(
+          JSON.stringify({ error: createError.message }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      if (!authData.user) {
+        return new Response(
+          JSON.stringify({ error: 'Failed to create user' }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, userId: authData.user.id }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
     if (!userId || typeof verify !== 'boolean') {
       return new Response(
