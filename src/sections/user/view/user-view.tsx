@@ -53,7 +53,7 @@ export function UserView() {
   const [openDialog, setOpenDialog] = useState(false);
   const [editUser, setEditUser] = useState<UserProps | null>(null);
 
-  const canManageUsers = userRole === 'admin' || userRole === 'manager';
+  const canManageUsers = userRole === 'super_admin' || userRole === 'admin' || userRole === 'manager';
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -66,11 +66,11 @@ export function UserView() {
 
       let query = supabase.from('users').select('*');
 
-      // Admins can see all users, managers only see users they created
+      // Super Admins and Admins can see all users, managers only see users they created
       if (userRole === 'manager') {
         query = query.eq('created_by', currentUser.id);
       }
-      // Admin role: no filter applied, sees all users
+      // Super Admin and Admin roles: no filter applied, sees all users
 
       const { data, error } = await query.order('created_at', { ascending: false });
 
@@ -104,11 +104,21 @@ export function UserView() {
   };
 
   const handleEdit = (user: UserProps) => {
+    if (user.role === 'super_admin' && userRole !== 'super_admin') {
+      alert('Only Super Admins can edit Super Admin accounts');
+      return;
+    }
     setEditUser(user);
     setOpenDialog(true);
   };
 
   const handleDelete = async (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (user?.role === 'super_admin' && userRole !== 'super_admin') {
+      alert('Only Super Admins can delete Super Admin accounts');
+      return;
+    }
+
     if (!window.confirm('Are you sure you want to delete this user?')) {
       return;
     }

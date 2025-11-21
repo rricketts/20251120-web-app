@@ -33,11 +33,14 @@ type Project = {
   name: string;
 };
 
-const ALL_ROLES = ['admin', 'manager', 'viewer'];
+const ALL_ROLES = ['super_admin', 'admin', 'manager', 'viewer'];
 
 const getRolesForUser = (userRole: string) => {
-  if (userRole === 'admin') {
+  if (userRole === 'super_admin') {
     return ALL_ROLES;
+  }
+  if (userRole === 'admin') {
+    return ['admin', 'manager', 'viewer'];
   }
   if (userRole === 'manager') {
     return ['manager', 'viewer'];
