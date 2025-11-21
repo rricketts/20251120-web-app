@@ -1,6 +1,6 @@
 import type { ButtonBaseProps } from '@mui/material/ButtonBase';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
@@ -11,7 +11,7 @@ import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
 import Divider from '@mui/material/Divider';
 
 import { useRouter } from 'src/routes/hooks';
-import { supabase } from 'src/lib/supabase';
+import { useProject } from 'src/contexts/project-context';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -29,44 +29,24 @@ export type WorkspacesPopoverProps = ButtonBaseProps & {
 
 export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopoverProps) {
   const router = useRouter();
-  const [projects, setProjects] = useState<typeof data>([]);
-  const [workspace, setWorkspace] = useState<typeof data[0] | null>(null);
+  const { projects: rawProjects, selectedProject, setSelectedProject } = useProject();
   const [openPopover, setOpenPopover] = useState<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const { data: projectsData, error } = await supabase
-          .from('projects')
-          .select('id, name, plan, logo_url')
-          .order('created_at', { ascending: false });
+  const projects = rawProjects.map((project) => ({
+    id: project.id,
+    name: project.name,
+    logo: project.logo_url || `/assets/icons/workspaces/logo-1.webp`,
+    plan: project.plan,
+  }));
 
-        if (error) {
-          console.error('Error fetching projects:', error);
-          return;
-        }
-
-        const formattedProjects = (projectsData || []).map((project) => ({
-          id: project.id,
-          name: project.name,
-          logo: project.logo_url || `/assets/icons/workspaces/logo-1.webp`,
-          plan: project.plan,
-        }));
-
-        setProjects(formattedProjects);
-        setWorkspace((prev) => {
-          if (!prev && formattedProjects.length > 0) {
-            return formattedProjects[0];
-          }
-          return prev;
-        });
-      } catch (error) {
-        console.error('Error fetching projects:', error);
+  const workspace = selectedProject
+    ? {
+        id: selectedProject.id,
+        name: selectedProject.name,
+        logo: selectedProject.logo_url || `/assets/icons/workspaces/logo-1.webp`,
+        plan: selectedProject.plan,
       }
-    };
-
-    fetchProjects();
-  }, []);
+    : null;
 
   const handleOpenPopover = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     setOpenPopover(event.currentTarget);
@@ -78,10 +58,13 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
 
   const handleChangeWorkspace = useCallback(
     (newValue: (typeof data)[number]) => {
-      setWorkspace(newValue);
+      const project = rawProjects.find((p) => p.id === newValue.id);
+      if (project) {
+        setSelectedProject(project);
+      }
       handleClosePopover();
     },
-    [handleClosePopover]
+    [handleClosePopover, rawProjects, setSelectedProject]
   );
 
   const handleManageProjects = useCallback(() => {

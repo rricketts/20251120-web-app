@@ -17,6 +17,7 @@ type KeywordFormDialogProps = {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  projectId?: string;
   editData?: {
     id: string;
     keyword: string;
@@ -27,7 +28,7 @@ type KeywordFormDialogProps = {
   } | null;
 };
 
-export function KeywordFormDialog({ open, onClose, onSuccess, editData }: KeywordFormDialogProps) {
+export function KeywordFormDialog({ open, onClose, onSuccess, projectId, editData }: KeywordFormDialogProps) {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     keyword: editData?.keyword || '',
@@ -56,9 +57,13 @@ export function KeywordFormDialog({ open, onClose, onSuccess, editData }: Keywor
 
         if (updateError) throw updateError;
       } else {
+        if (!projectId) {
+          throw new Error('Project is required');
+        }
         const { error: insertError } = await supabase.from('keywords').insert({
           ...formData,
           user_id: user?.id,
+          project_id: projectId,
         });
 
         if (insertError) throw insertError;

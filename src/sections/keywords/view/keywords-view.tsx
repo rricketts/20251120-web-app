@@ -13,6 +13,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/contexts/auth-context';
+import { useProject } from 'src/contexts/project-context';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 
@@ -37,6 +38,7 @@ type Keyword = {
 
 export function KeywordsView() {
   const { user } = useAuth();
+  const { selectedProject } = useProject();
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -48,12 +50,18 @@ export function KeywordsView() {
   const [editData, setEditData] = useState<Keyword | null>(null);
 
   const fetchKeywords = useCallback(async () => {
+    if (!selectedProject?.id) {
+      setKeywords([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('keywords')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('project_id', selectedProject.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -63,7 +71,7 @@ export function KeywordsView() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [selectedProject?.id]);
 
   useEffect(() => {
     fetchKeywords();
@@ -128,6 +136,7 @@ export function KeywordsView() {
           color="inherit"
           startIcon={<Iconify icon="mingcute:add-line" />}
           onClick={() => setDialogOpen(true)}
+          disabled={!selectedProject}
         >
           New Keyword
         </Button>
@@ -201,6 +210,7 @@ export function KeywordsView() {
         onClose={handleDialogClose}
         onSuccess={fetchKeywords}
         editData={editData}
+        projectId={selectedProject?.id}
       />
     </DashboardContent>
   );

@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { _posts, _tasks, _traffic, _timeline } from 'src/_mock';
 import { useAuth } from 'src/contexts/auth-context';
+import { useProject } from 'src/contexts/project-context';
 
 import { AnalyticsNews } from '../analytics-news';
 import { AnalyticsTasks } from '../analytics-tasks';
@@ -20,11 +21,12 @@ import { AnalyticsDomainMetrics } from '../analytics-domain-metrics';
 
 export function OverviewAnalyticsView() {
   const { userData } = useAuth();
+  const { selectedProject } = useProject();
 
   return (
     <DashboardContent maxWidth="xl">
       <Typography variant="h4" sx={{ mb: { xs: 3, md: 5 } }}>
-        Hi, Welcome back {userData?.name || 'User'} 👋
+        {selectedProject?.name || 'Dashboard'} - Analytics
       </Typography>
 
       <Grid container spacing={3}>
