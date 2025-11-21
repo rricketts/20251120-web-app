@@ -55,9 +55,17 @@ export function DashboardLayout({
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
   const navigationData = useMemo(() => {
-    const canManageUsers = ['super_admin', 'admin', 'manager'].includes(userRole);
+    console.log('=== Navigation Data Recomputing ===');
+    console.log('Dashboard Layout - userRole:', userRole);
+    console.log('Dashboard Layout - typeof userRole:', typeof userRole);
 
-    console.log('Dashboard Layout - userRole:', userRole, 'canManageUsers:', canManageUsers);
+    const canManageUsers = ['super_admin', 'admin', 'manager'].includes(userRole);
+    console.log('Dashboard Layout - canManageUsers:', canManageUsers);
+    console.log('Dashboard Layout - checking roles:', {
+      isSuperAdmin: userRole === 'super_admin',
+      isAdmin: userRole === 'admin',
+      isManager: userRole === 'manager',
+    });
 
     const data = canManageUsers
       ? [
@@ -70,7 +78,9 @@ export function DashboardLayout({
         ]
       : navData;
 
-    console.log('Dashboard Layout - navigationData:', data);
+    console.log('Dashboard Layout - navigationData length:', data.length);
+    console.log('Dashboard Layout - navigationData titles:', data.map(item => item.title));
+    console.log('=== End Navigation Data Recomputing ===');
     return data;
   }, [userRole]);
 
