@@ -32,7 +32,17 @@ const OAUTH_CONFIG = {
 };
 
 export function GoogleSearchConsoleConfig() {
+  console.log('='.repeat(80));
+  console.log('[GSC Init] GoogleSearchConsoleConfig component is initializing');
+  console.log('[GSC Init] Current URL:', window.location.href);
+  console.log('[GSC Init] URL pathname:', window.location.pathname);
+  console.log('[GSC Init] URL search:', window.location.search);
+  console.log('[GSC Init] URL hash:', window.location.hash);
+  console.log('='.repeat(80));
+
   const { selectedProject } = useProject();
+  console.log('[GSC Init] Selected project:', selectedProject);
+
   const [selectedProperty, setSelectedProperty] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,6 +52,8 @@ export function GoogleSearchConsoleConfig() {
   const [error, setError] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [debugLog, setDebugLog] = useState<string[]>([]);
+
+  console.log('[GSC Init] Initial state set - isLoading:', true, 'isConnecting:', false);
 
   const addDebugLog = (message: string) => {
     const logMessage = `${new Date().toISOString()}: ${message}`;
@@ -54,15 +66,19 @@ export function GoogleSearchConsoleConfig() {
   }, [isLoading, isConnecting, isConnected, properties, accessToken]);
 
   useEffect(() => {
+    console.log('[GSC UseEffect] Main useEffect triggered');
     const handleInit = async () => {
+      console.log('[GSC UseEffect] handleInit starting');
       addDebugLog('Component mounted');
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
       const errorParam = params.get('error');
 
+      console.log('[GSC UseEffect] Parsed URL params - code:', code?.substring(0, 20) + '...', 'error:', errorParam);
       addDebugLog(`URL params - code: ${code ? 'present' : 'none'}, error: ${errorParam || 'none'}`);
 
       if (errorParam) {
+        console.log('[GSC UseEffect] Error param detected, showing error');
         addDebugLog(`OAuth error detected: ${errorParam}`);
         setError('Authorization was cancelled or failed');
         setIsLoading(false);
@@ -71,21 +87,29 @@ export function GoogleSearchConsoleConfig() {
       }
 
       if (code) {
+        console.log('[GSC UseEffect] OAuth code detected, calling handleOAuthCallback');
         addDebugLog('OAuth code detected, starting callback handler');
         await handleOAuthCallback(code);
+        console.log('[GSC UseEffect] handleOAuthCallback completed');
         return;
       }
 
       if (selectedProject) {
+        console.log('[GSC UseEffect] No code, loading existing config for project:', selectedProject.id);
         addDebugLog(`Loading config for project: ${selectedProject.id}`);
         await loadExistingConfig();
+        console.log('[GSC UseEffect] loadExistingConfig completed');
       } else {
+        console.log('[GSC UseEffect] No project selected, setting isLoading to false');
         addDebugLog('No project selected');
         setIsLoading(false);
       }
     };
 
-    handleInit();
+    handleInit().catch(err => {
+      console.error('[GSC UseEffect] Error in handleInit:', err);
+      addDebugLog(`Error in handleInit: ${err.message}`);
+    });
   }, []);
 
   useEffect(() => {
@@ -160,14 +184,21 @@ export function GoogleSearchConsoleConfig() {
   };
 
   const handleOAuthCallback = async (code: string) => {
+    console.log('[GSC OAuth] ========== STARTING OAUTH CALLBACK ==========');
+    console.log('[GSC OAuth] Code length:', code.length);
+    console.log('[GSC OAuth] Code preview:', code.substring(0, 20) + '...');
     addDebugLog(`Starting OAuth callback with code: ${code.substring(0, 10)}...`);
+    console.log('[GSC OAuth] Setting isConnecting to true');
     setIsConnecting(true);
     setError(null);
 
     try {
+      console.log('[GSC OAuth] Exchanging code for token');
       addDebugLog('Exchanging code for token via Edge Function');
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
+      console.log('[GSC OAuth] API URL:', apiUrl);
 
+      console.log('[GSC OAuth] Making fetch request...');
       const tokenResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -180,6 +211,7 @@ export function GoogleSearchConsoleConfig() {
         }),
       });
 
+      console.log('[GSC OAuth] Token response received - status:', tokenResponse.status);
       addDebugLog(`Token response status: ${tokenResponse.status}`);
 
       if (!tokenResponse.ok) {
@@ -228,21 +260,29 @@ export function GoogleSearchConsoleConfig() {
         throw saveError;
       }
 
+      console.log('[GSC OAuth] Credentials saved successfully');
       addDebugLog('Credentials saved successfully');
+      console.log('[GSC OAuth] Setting isConnected to true');
       setIsConnected(true);
       addDebugLog('Setting isConnected to true');
+      console.log('[GSC OAuth] Cleaning up URL');
       addDebugLog('Cleaning up URL');
       window.history.replaceState({}, '', window.location.pathname);
+      console.log('[GSC OAuth] URL cleaned - new URL:', window.location.href);
       addDebugLog('URL cleaned, should render main content now');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('[GSC OAuth] ERROR:', err);
       addDebugLog(`OAuth error: ${errorMessage}`);
       console.error('OAuth error:', err);
       setError(`Failed to connect to Google Search Console: ${errorMessage}`);
     } finally {
+      console.log('[GSC OAuth] ========== OAUTH CALLBACK COMPLETE ==========');
+      console.log('[GSC OAuth] Setting isConnecting=false, isLoading=false');
       addDebugLog('OAuth callback complete - setting isConnecting=false, isLoading=false');
       setIsConnecting(false);
       setIsLoading(false);
+      console.log('[GSC OAuth] Final state - isLoading: false, isConnecting: false, isConnected:', isConnected);
       addDebugLog(`Final state after OAuth - isLoading: ${false}, isConnecting: ${false}`);
     }
   };
