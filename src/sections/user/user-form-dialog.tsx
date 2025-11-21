@@ -111,7 +111,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     if (editUser) {
       setFormData({
         name: editUser.name,
-        email: '',
+        email: editUser.email,
         password: '',
         passwordConfirm: '',
         role: editUser.role,
@@ -339,17 +339,19 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               disabled={loading}
             />
 
+            <TextField
+              required
+              fullWidth
+              type="email"
+              label="Email"
+              value={formData.email}
+              onChange={handleChange('email')}
+              disabled={loading || !!editUser}
+              helperText={editUser ? 'Email cannot be changed' : ''}
+            />
+
             {!editUser && (
               <>
-                <TextField
-                  required
-                  fullWidth
-                  type="email"
-                  label="Email"
-                  value={formData.email}
-                  onChange={handleChange('email')}
-                  disabled={loading}
-                />
 
                 <TextField
                   required

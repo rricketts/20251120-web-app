@@ -37,6 +37,7 @@ function convertUserToUserProps(user: User): UserProps {
   return {
     id: user.id,
     name: user.name,
+    email: user.email,
     role: user.role,
     isVerified: user.is_verified,
     status: user.status,
@@ -193,6 +194,7 @@ export function UserView() {
                 }
                 headLabel={[
                   { id: 'name', label: 'Name' },
+                  { id: 'email', label: 'Email' },
                   { id: 'role', label: 'Role' },
                   { id: 'isVerified', label: 'Verified', align: 'center' },
                   { id: 'status', label: 'Status' },

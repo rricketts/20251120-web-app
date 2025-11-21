@@ -18,6 +18,7 @@ import { Iconify } from 'src/components/iconify';
 export type UserProps = {
   id: string;
   name: string;
+  email: string;
   role: string;
   status: string;
   isVerified: boolean;
@@ -71,6 +72,8 @@ export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: U
             {row.name}
           </Box>
         </TableCell>
+
+        <TableCell>{row.email}</TableCell>
 
         <TableCell>{row.role}</TableCell>
 
