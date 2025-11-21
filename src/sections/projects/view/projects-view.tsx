@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -7,8 +7,11 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/contexts/auth-context';
@@ -28,12 +31,16 @@ type Project = {
   member_count?: number;
 };
 
+type SortOption = 'name-asc' | 'name-desc' | 'created-asc' | 'created-desc' | 'members-asc' | 'members-desc';
+
 export function ProjectsView() {
   const { userRole } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('name-asc');
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -44,8 +51,7 @@ export function ProjectsView() {
 
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
 
       console.log('Projects query result:', { projectsData, projectsError });
 
@@ -177,6 +183,46 @@ export function ProjectsView() {
     return colors[index];
   };
 
+  const filteredAndSortedProjects = useMemo(() => {
+    let filtered = projects;
+
+    if (searchQuery) {
+      filtered = projects.filter((project) =>
+        project.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'name-asc':
+          return a.name.localeCompare(b.name);
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        case 'created-asc':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'created-desc':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'members-asc':
+          return (a.member_count || 0) - (b.member_count || 0);
+        case 'members-desc':
+          return (b.member_count || 0) - (a.member_count || 0);
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [projects, searchQuery, sortBy]);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
   return (
     <DashboardContent>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
@@ -190,6 +236,42 @@ export function ProjectsView() {
           New project
         </Button>
       </Stack>
+
+      {!loading && projects.length > 0 && (
+        <Card sx={{ mb: 3, p: 2 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <TextField
+              fullWidth
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search projects..."
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TextField
+              select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              sx={{ minWidth: 200 }}
+              SelectProps={{
+                displayEmpty: true,
+              }}
+            >
+              <MenuItem value="name-asc">Name (A-Z)</MenuItem>
+              <MenuItem value="name-desc">Name (Z-A)</MenuItem>
+              <MenuItem value="created-desc">Newest first</MenuItem>
+              <MenuItem value="created-asc">Oldest first</MenuItem>
+              <MenuItem value="members-desc">Most members</MenuItem>
+              <MenuItem value="members-asc">Least members</MenuItem>
+            </TextField>
+          </Stack>
+        </Card>
+      )}
 
       {loading ? (
         <Card sx={{ p: 3 }}>
@@ -217,9 +299,30 @@ export function ProjectsView() {
             Create project
           </Button>
         </Card>
+      ) : filteredAndSortedProjects.length === 0 ? (
+        <Card sx={{ p: 5, textAlign: 'center' }}>
+          <Iconify
+            icon="eva:search-outline"
+            width={80}
+            sx={{ mb: 2, color: 'text.disabled', mx: 'auto' }}
+          />
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            No projects found
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
+            Try adjusting your search query
+          </Typography>
+          <Button
+            variant="outlined"
+            color="inherit"
+            onClick={() => setSearchQuery('')}
+          >
+            Clear search
+          </Button>
+        </Card>
       ) : (
         <Stack spacing={2}>
-          {projects.map((project) => (
+          {filteredAndSortedProjects.map((project) => (
             <Card key={project.id}>
               <Stack
                 direction="row"
@@ -249,6 +352,10 @@ export function ProjectsView() {
                     <Divider orientation="vertical" flexItem />
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       {project.member_count} {project.member_count === 1 ? 'member' : 'members'}
+                    </Typography>
+                    <Divider orientation="vertical" flexItem />
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      Created {formatDate(project.created_at)}
                     </Typography>
                   </Stack>
                 </Box>
