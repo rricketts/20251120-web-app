@@ -643,20 +643,6 @@ export function GoogleSearchConsoleConfig() {
     );
   }
 
-  if (isLoading || isConnecting) {
-    console.log('[GSC Render] Showing loading spinner');
-    return (
-      <DashboardContent>
-        <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 400 }}>
-          <Iconify icon="svg-spinners:3-dots-fade" width={48} />
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            {isConnecting ? 'Connecting to Google Search Console...' : 'Loading...'}
-          </Typography>
-        </Stack>
-      </DashboardContent>
-    );
-  }
-
   console.log('[GSC Render] ========== RENDER DECISION ==========');
   console.log('[GSC Render] isLoading:', isLoading);
   console.log('[GSC Render] isConnecting:', isConnecting);
