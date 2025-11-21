@@ -152,13 +152,15 @@ export function IntegrationsView() {
                       }
                       label={integration.connected ? 'Connected' : 'Disconnected'}
                     />
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => integration.configPath && navigate(integration.configPath)}
-                    >
-                      Configure
-                    </Button>
+                    {integration.configPath && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => navigate(integration.configPath!)}
+                      >
+                        Configure
+                      </Button>
+                    )}
                   </Stack>
                 </Stack>
               </CardContent>
