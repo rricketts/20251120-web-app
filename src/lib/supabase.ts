@@ -14,7 +14,6 @@ export type User = {
   name: string;
   email: string;
   role: string;
-  is_verified: boolean;
   is_active: boolean;
   status: string;
   last_login_at?: string;

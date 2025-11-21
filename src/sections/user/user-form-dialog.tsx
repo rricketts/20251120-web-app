@@ -52,7 +52,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     password: '',
     passwordConfirm: '',
     role: 'viewer',
-    isVerified: false,
     isActive: true,
     status: 'active',
   });
@@ -116,7 +115,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         password: '',
         passwordConfirm: '',
         role: editUser.role,
-        isVerified: editUser.isVerified,
         isActive: editUser.isActive !== undefined ? editUser.isActive : true,
         status: editUser.status,
       });
@@ -127,7 +125,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         password: '',
         passwordConfirm: '',
         role: defaultRole,
-        isVerified: false,
         isActive: true,
         status: 'active',
       });
@@ -141,10 +138,10 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     }));
   };
 
-  const handleCheckboxChange = (field: 'isVerified' | 'isActive') => (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
-      [field]: event.target.checked,
+      isActive: event.target.checked,
     }));
   };
 
@@ -192,7 +189,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
           .update({
             name: formData.name,
             role: formData.role,
-            is_verified: formData.isVerified,
             is_active: formData.isActive,
             status: formData.status,
           })
@@ -226,35 +222,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               }
             } catch (err: any) {
               throw new Error(err.message || 'Failed to update password');
-            }
-          }
-        }
-
-        if (formData.isVerified !== editUser.isVerified) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            try {
-              const response = await fetch(
-                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-user-email`,
-                {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${session.access_token}`,
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    userId: editUser.id,
-                    verify: formData.isVerified,
-                  }),
-                }
-              );
-
-              if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Failed to update email verification:', errorData);
-              }
-            } catch (err) {
-              console.error('Failed to call verify-user-email function:', err);
             }
           }
         }
@@ -300,7 +267,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               password: formData.password,
               name: formData.name,
               role: formData.role,
-              isVerified: formData.isVerified,
               createUser: true,
             }),
           }
@@ -324,7 +290,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               name: formData.name,
               email: formData.email,
               role: formData.role,
-              is_verified: formData.isVerified,
               is_active: formData.isActive,
               status: formData.status,
               created_by: currentUser?.id,
@@ -354,7 +319,6 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         password: '',
         passwordConfirm: '',
         role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'viewer',
-        isVerified: false,
         isActive: true,
         status: 'active',
       });
@@ -461,19 +425,8 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
             <FormControlLabel
               control={
                 <Checkbox
-                  checked={formData.isVerified}
-                  onChange={handleCheckboxChange('isVerified')}
-                  disabled={loading}
-                />
-              }
-              label="Verified"
-            />
-
-            <FormControlLabel
-              control={
-                <Checkbox
                   checked={formData.isActive}
-                  onChange={handleCheckboxChange('isActive')}
+                  onChange={handleCheckboxChange}
                   disabled={loading}
                 />
               }

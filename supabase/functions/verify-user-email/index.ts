@@ -77,7 +77,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const requestBody = await req.json();
-    const { userId, verify, createUser, email, password, name, role, isVerified, updatePassword, newPassword } = requestBody;
+    const { userId, createUser, email, password, name, role, updatePassword, newPassword } = requestBody;
 
     if (updatePassword) {
       if (!userId || !newPassword) {
@@ -129,7 +129,7 @@ Deno.serve(async (req: Request) => {
       const { data: authData, error: createError } = await supabaseClient.auth.admin.createUser({
         email: email,
         password: password,
-        email_confirm: isVerified || false,
+        email_confirm: true,
         user_metadata: {
           name: name,
           role: role,
@@ -166,36 +166,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!userId || typeof verify !== 'boolean') {
-      return new Response(
-        JSON.stringify({ error: 'Invalid request body' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
-    const { data, error } = await supabaseClient.auth.admin.updateUserById(
-      userId,
-      { email_confirm: verify }
-    );
-
-    if (error) {
-      console.error('Error updating user:', error);
-      return new Response(
-        JSON.stringify({ error: error.message }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-
     return new Response(
-      JSON.stringify({ success: true, data }),
+      JSON.stringify({ error: 'Invalid request' }),
       {
-        status: 200,
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );

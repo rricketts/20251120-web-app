@@ -21,7 +21,6 @@ export type UserProps = {
   email: string;
   role: string;
   status: string;
-  isVerified: boolean;
   isActive: boolean;
   lastLoginAt?: string;
 };
@@ -83,14 +82,6 @@ export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: U
           <Label color={row.isActive ? 'success' : 'error'}>
             {row.isActive ? 'Active' : 'Inactive'}
           </Label>
-        </TableCell>
-
-        <TableCell align="center">
-          {row.isVerified ? (
-            <Iconify width={22} icon="solar:check-circle-bold" sx={{ color: 'success.main' }} />
-          ) : (
-            '-'
-          )}
         </TableCell>
 
         <TableCell>
