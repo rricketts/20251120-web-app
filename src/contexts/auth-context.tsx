@@ -44,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (currentSession?.user?.email) {
         const data = await getUserDataByEmail(currentSession.user.email);
+        console.log('Auth Context - initAuth - userData:', data, 'role:', data?.role);
         setUserData(data);
         setUserRole(data?.role || 'viewer');
 
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (currentSession?.user?.email) {
         const data = await getUserDataByEmail(currentSession.user.email);
+        console.log('Auth Context - onAuthStateChange - event:', event, 'userData:', data, 'role:', data?.role);
         setUserData(data);
         setUserRole(data?.role || 'viewer');
 

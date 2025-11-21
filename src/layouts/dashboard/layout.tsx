@@ -54,7 +54,7 @@ export function DashboardLayout({
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-  const canManageUsers = userRole === 'super_admin' || userRole === 'admin' || userRole === 'manager';
+  const canManageUsers = ['super_admin', 'admin', 'manager'].includes(userRole);
 
   const navigationData = canManageUsers
     ? [
@@ -66,6 +66,8 @@ export function DashboardLayout({
         },
       ]
     : navData;
+
+  console.log('Dashboard Layout - userRole:', userRole, 'canManageUsers:', canManageUsers, 'navigationData:', navigationData);
 
   useEffect(() => {
     if (!loading && !user) {
