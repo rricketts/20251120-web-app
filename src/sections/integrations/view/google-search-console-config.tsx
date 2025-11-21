@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
@@ -12,6 +13,8 @@ import InputLabel from '@mui/material/InputLabel';
 import CardContent from '@mui/material/CardContent';
 import FormControl from '@mui/material/FormControl';
 
+import { supabase } from 'src/lib/supabase';
+import { useProject } from 'src/contexts/project-context';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
@@ -21,47 +24,330 @@ type PropertyType = {
   permissionLevel: string;
 };
 
+const OAUTH_CONFIG = {
+  clientId: '530759122152-hoc2fmn25t2b0jjvhg1ikoi5afcnbgdr.apps.googleusercontent.com',
+  redirectUri: `${window.location.origin}/integrations/google-search-console`,
+  scope: 'https://www.googleapis.com/auth/webmasters.readonly',
+  authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+};
+
 export function GoogleSearchConsoleConfig() {
-  const [apiKey, setApiKey] = useState('');
-  const [clientId, setClientId] = useState('');
-  const [clientSecret, setClientSecret] = useState('');
+  const { selectedProject } = useProject();
   const [selectedProperty, setSelectedProperty] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
   const [properties, setProperties] = useState<PropertyType[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
 
-  const handleConnect = async () => {
+  const addDebugLog = (message: string) => {
+    console.log(`[GSC Debug] ${message}`);
+    setDebugLog(prev => [...prev, `${new Date().toISOString()}: ${message}`]);
+  };
+
+  useEffect(() => {
+    const handleInit = async () => {
+      addDebugLog('Component mounted');
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      const errorParam = params.get('error');
+
+      addDebugLog(`URL params - code: ${code ? 'present' : 'none'}, error: ${errorParam || 'none'}`);
+
+      if (errorParam) {
+        addDebugLog(`OAuth error detected: ${errorParam}`);
+        setError('Authorization was cancelled or failed');
+        setIsLoading(false);
+        window.history.replaceState({}, '', window.location.pathname);
+        return;
+      }
+
+      if (code) {
+        addDebugLog('OAuth code detected, starting callback handler');
+        await handleOAuthCallback(code);
+        return;
+      }
+
+      if (selectedProject) {
+        addDebugLog(`Loading config for project: ${selectedProject.id}`);
+        await loadExistingConfig();
+      } else {
+        addDebugLog('No project selected');
+        setIsLoading(false);
+      }
+    };
+
+    handleInit();
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+
+    if (!code && selectedProject && !isConnecting) {
+      addDebugLog(`Project changed to: ${selectedProject.id}, reloading config`);
+      loadExistingConfig();
+    }
+  }, [selectedProject]);
+
+  const loadExistingConfig = async () => {
+    if (!selectedProject) return;
+
+    try {
+      addDebugLog('Fetching existing config from database');
+      const { data, error: fetchError } = await supabase
+        .from('integration_credentials')
+        .select('*')
+        .eq('project_id', selectedProject.id)
+        .eq('integration_type', 'google_search_console')
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (fetchError) {
+        addDebugLog(`Database fetch error: ${fetchError.message}`);
+        throw fetchError;
+      }
+
+      if (data) {
+        addDebugLog('Existing config found, setting connected state');
+        setIsConnected(true);
+        setSelectedProperty(data.selected_property || '');
+        setAccessToken(data.access_token);
+        if (data.access_token) {
+          addDebugLog('Access token found, fetching properties');
+          await fetchProperties(data.access_token);
+        }
+      } else {
+        addDebugLog('No existing config found');
+      }
+    } catch (err) {
+      addDebugLog(`Error loading config: ${err instanceof Error ? err.message : String(err)}`);
+      console.error('Error loading config:', err);
+    } finally {
+      addDebugLog('Load config complete');
+      setIsLoading(false);
+    }
+  };
+
+  const handleConnect = () => {
+    addDebugLog('Initiating OAuth connection');
+    const state = crypto.randomUUID();
+    sessionStorage.setItem('oauth_state', state);
+    addDebugLog(`OAuth state generated: ${state}`);
+    addDebugLog(`Redirect URI: ${OAUTH_CONFIG.redirectUri}`);
+
+    const authParams = new URLSearchParams({
+      client_id: OAUTH_CONFIG.clientId,
+      redirect_uri: OAUTH_CONFIG.redirectUri,
+      response_type: 'code',
+      scope: OAUTH_CONFIG.scope,
+      access_type: 'offline',
+      prompt: 'consent',
+      state,
+    });
+
+    const authUrl = `${OAUTH_CONFIG.authUrl}?${authParams.toString()}`;
+    addDebugLog(`Redirecting to: ${authUrl}`);
+    window.location.href = authUrl;
+  };
+
+  const handleOAuthCallback = async (code: string) => {
+    addDebugLog(`Starting OAuth callback with code: ${code.substring(0, 10)}...`);
     setIsConnecting(true);
+    setError(null);
 
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      addDebugLog('Exchanging code for token via Edge Function');
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth-exchange`;
 
-    setProperties([
-      { url: 'https://example.com', permissionLevel: 'Owner' },
-      { url: 'https://blog.example.com', permissionLevel: 'Full' },
-      { url: 'https://shop.example.com', permissionLevel: 'Full' },
-    ]);
+      const tokenResponse = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code,
+          redirectUri: OAUTH_CONFIG.redirectUri,
+        }),
+      });
 
-    setIsConnected(true);
-    setIsConnecting(false);
+      addDebugLog(`Token response status: ${tokenResponse.status}`);
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        addDebugLog(`Token exchange failed: ${errorText}`);
+        throw new Error('Failed to exchange code for token');
+      }
+
+      const tokenData = await tokenResponse.json();
+      addDebugLog('Token received successfully');
+      addDebugLog(`Token has refresh_token: ${!!tokenData.refresh_token}`);
+      setAccessToken(tokenData.access_token);
+
+      addDebugLog('Fetching properties with new token');
+      await fetchProperties(tokenData.access_token);
+
+      addDebugLog('Getting user data');
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        addDebugLog('No user found in session');
+        throw new Error('User not found');
+      }
+      if (!selectedProject) {
+        addDebugLog('No project selected');
+        throw new Error('Project not found');
+      }
+      addDebugLog(`User ID: ${userData.user.id}, Project ID: ${selectedProject.id}`);
+
+      addDebugLog('Saving credentials to database');
+      const { error: saveError } = await supabase
+        .from('integration_credentials')
+        .upsert({
+          project_id: selectedProject.id,
+          integration_type: 'google_search_console',
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          token_expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+          is_active: true,
+          created_by: userData.user.id,
+        }, {
+          onConflict: 'project_id,integration_type',
+        });
+
+      if (saveError) {
+        addDebugLog(`Database save error: ${saveError.message}`);
+        throw saveError;
+      }
+
+      addDebugLog('Credentials saved successfully');
+      setIsConnected(true);
+      addDebugLog('Cleaning up URL');
+      window.history.replaceState({}, '', window.location.pathname);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      addDebugLog(`OAuth error: ${errorMessage}`);
+      console.error('OAuth error:', err);
+      setError(`Failed to connect to Google Search Console: ${errorMessage}`);
+    } finally {
+      addDebugLog('OAuth callback complete');
+      setIsConnecting(false);
+      setIsLoading(false);
+    }
+  };
+
+  const fetchProperties = async (token: string) => {
+    try {
+      addDebugLog('Fetching GSC properties from API');
+      const response = await fetch(
+        'https://www.googleapis.com/webmasters/v3/sites',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      addDebugLog(`Properties response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        addDebugLog(`Properties fetch failed: ${errorText}`);
+        throw new Error('Failed to fetch properties');
+      }
+
+      const data = await response.json();
+      const siteEntries = data.siteEntry || [];
+      addDebugLog(`Found ${siteEntries.length} properties`);
+
+      setProperties(
+        siteEntries.map((site: any) => ({
+          url: site.siteUrl,
+          permissionLevel: site.permissionLevel,
+        }))
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      addDebugLog(`Error fetching properties: ${errorMessage}`);
+      console.error('Error fetching properties:', err);
+      setError(`Failed to fetch Search Console properties: ${errorMessage}`);
+    }
   };
 
   const handleSave = async () => {
+    if (!selectedProject || !selectedProperty) return;
+
     setIsSaving(true);
+    setError(null);
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const { error: updateError } = await supabase
+        .from('integration_credentials')
+        .update({
+          selected_property: selectedProperty,
+          is_active: true,
+        })
+        .eq('project_id', selectedProject.id)
+        .eq('integration_type', 'google_search_console');
 
-    setIsSaving(false);
+      if (updateError) throw updateError;
+
+      setError(null);
+    } catch (err) {
+      console.error('Error saving config:', err);
+      setError('Failed to save configuration. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDisconnect = () => {
-    setApiKey('');
-    setClientId('');
-    setClientSecret('');
-    setSelectedProperty('');
-    setProperties([]);
-    setIsConnected(false);
+  const handleDisconnect = async () => {
+    if (!selectedProject) return;
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('integration_credentials')
+        .delete()
+        .eq('project_id', selectedProject.id)
+        .eq('integration_type', 'google_search_console');
+
+      if (deleteError) throw deleteError;
+
+      setSelectedProperty('');
+      setProperties([]);
+      setIsConnected(false);
+      setAccessToken(null);
+    } catch (err) {
+      console.error('Error disconnecting:', err);
+      setError('Failed to disconnect. Please try again.');
+    }
   };
+
+  if (!selectedProject) {
+    return (
+      <DashboardContent>
+        <Alert severity="warning">
+          Please select a project to configure Google Search Console integration.
+        </Alert>
+      </DashboardContent>
+    );
+  }
+
+  if (isLoading || isConnecting) {
+    return (
+      <DashboardContent>
+        <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 400 }}>
+          <Iconify icon="svg-spinners:3-dots-fade" width={48} />
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            {isConnecting ? 'Connecting to Google Search Console...' : 'Loading...'}
+          </Typography>
+        </Stack>
+      </DashboardContent>
+    );
+  }
 
   return (
     <DashboardContent>
@@ -71,10 +357,54 @@ export function GoogleSearchConsoleConfig() {
             Google Search Console
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Configure your Google Search Console integration
+            Configure Google Search Console for {selectedProject.name}
           </Typography>
         </Box>
       </Stack>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {debugLog.length > 0 && (
+        <Card sx={{ mb: 3, bgcolor: 'grey.900', color: 'grey.100' }}>
+          <CardContent>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+              <Typography variant="subtitle2" sx={{ fontFamily: 'monospace' }}>
+                Debug Log
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => {
+                  navigator.clipboard.writeText(debugLog.join('\n'));
+                }}
+                sx={{ color: 'grey.300' }}
+              >
+                Copy
+              </Button>
+            </Stack>
+            <Box
+              sx={{
+                maxHeight: 200,
+                overflow: 'auto',
+                fontFamily: 'monospace',
+                fontSize: '0.75rem',
+                bgcolor: 'grey.800',
+                p: 2,
+                borderRadius: 1,
+              }}
+            >
+              {debugLog.map((log, index) => (
+                <Box key={index} sx={{ mb: 0.5 }}>
+                  {log}
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent>
@@ -104,48 +434,19 @@ export function GoogleSearchConsoleConfig() {
             {!isConnected ? (
               <>
                 <Typography variant="subtitle2" color="text.secondary">
-                  To connect Google Search Console, you'll need to create OAuth 2.0 credentials
-                  in the Google Cloud Console.
+                  Connect your Google account to access Search Console data for this project.
                 </Typography>
-
-                <TextField
-                  fullWidth
-                  label="Client ID"
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  placeholder="Enter your OAuth 2.0 Client ID"
-                />
-
-                <TextField
-                  fullWidth
-                  label="Client Secret"
-                  type="password"
-                  value={clientSecret}
-                  onChange={(e) => setClientSecret(e.target.value)}
-                  placeholder="Enter your OAuth 2.0 Client Secret"
-                />
-
-                <TextField
-                  fullWidth
-                  label="API Key (Optional)"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Enter your API Key"
-                />
 
                 <Box sx={{ bgcolor: 'background.neutral', p: 2, borderRadius: 1 }}>
                   <Typography variant="subtitle2" gutterBottom>
-                    How to get your credentials:
+                    What you'll need:
                   </Typography>
                   <Typography variant="body2" component="div" color="text.secondary">
-                    <ol style={{ margin: 0, paddingLeft: 20 }}>
-                      <li>Go to the Google Cloud Console</li>
-                      <li>Create a new project or select an existing one</li>
-                      <li>Enable the Google Search Console API</li>
-                      <li>Create OAuth 2.0 credentials (Web application)</li>
-                      <li>Add authorized redirect URIs</li>
-                      <li>Copy your Client ID and Client Secret</li>
-                    </ol>
+                    <ul style={{ margin: 0, paddingLeft: 20 }}>
+                      <li>A Google account with access to Search Console</li>
+                      <li>Permission to view the properties you want to track</li>
+                      <li>OAuth 2.0 credentials configured in Google Cloud Console</li>
+                    </ul>
                   </Typography>
                 </Box>
 
@@ -153,7 +454,7 @@ export function GoogleSearchConsoleConfig() {
                   <Button
                     variant="contained"
                     onClick={handleConnect}
-                    disabled={!clientId || !clientSecret || isConnecting}
+                    disabled={isConnecting}
                     startIcon={
                       isConnecting ? (
                         <Iconify icon="svg-spinners:3-dots-fade" />
@@ -162,7 +463,7 @@ export function GoogleSearchConsoleConfig() {
                       )
                     }
                   >
-                    {isConnecting ? 'Connecting...' : 'Connect'}
+                    {isConnecting ? 'Connecting...' : 'Connect with Google'}
                   </Button>
                 </Stack>
               </>
@@ -184,48 +485,62 @@ export function GoogleSearchConsoleConfig() {
                   </Stack>
                 </Box>
 
-                <FormControl fullWidth>
-                  <InputLabel>Select Property</InputLabel>
-                  <Select
-                    value={selectedProperty}
-                    label="Select Property"
-                    onChange={(e) => setSelectedProperty(e.target.value)}
-                  >
-                    {properties.map((property) => (
-                      <MenuItem key={property.url} value={property.url}>
-                        <Stack direction="row" alignItems="center" spacing={1} sx={{ width: '100%' }}>
-                          <Typography sx={{ flex: 1 }}>{property.url}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {property.permissionLevel}
-                          </Typography>
-                        </Stack>
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                {properties.length > 0 ? (
+                  <>
+                    <FormControl fullWidth>
+                      <InputLabel>Select Property</InputLabel>
+                      <Select
+                        value={selectedProperty}
+                        label="Select Property"
+                        onChange={(e) => setSelectedProperty(e.target.value)}
+                      >
+                        {properties.map((property) => (
+                          <MenuItem key={property.url} value={property.url}>
+                            <Stack direction="row" alignItems="center" spacing={1} sx={{ width: '100%' }}>
+                              <Typography sx={{ flex: 1 }}>{property.url}</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {property.permissionLevel}
+                              </Typography>
+                            </Stack>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
 
-                {selectedProperty && (
-                  <Box sx={{ bgcolor: 'background.neutral', p: 2, borderRadius: 1 }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Property Details
-                    </Typography>
-                    <Stack spacing={1}>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2" color="text.secondary">
-                          URL:
+                    {selectedProperty && (
+                      <Box sx={{ bgcolor: 'background.neutral', p: 2, borderRadius: 1 }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Property Details
                         </Typography>
-                        <Typography variant="body2">{selectedProperty}</Typography>
-                      </Stack>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2" color="text.secondary">
-                          Permission:
-                        </Typography>
-                        <Typography variant="body2">
-                          {properties.find((p) => p.url === selectedProperty)?.permissionLevel}
-                        </Typography>
-                      </Stack>
-                    </Stack>
-                  </Box>
+                        <Stack spacing={1}>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body2" color="text.secondary">
+                              URL:
+                            </Typography>
+                            <Typography variant="body2">{selectedProperty}</Typography>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body2" color="text.secondary">
+                              Permission:
+                            </Typography>
+                            <Typography variant="body2">
+                              {properties.find((p) => p.url === selectedProperty)?.permissionLevel}
+                            </Typography>
+                          </Stack>
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body2" color="text.secondary">
+                              Project:
+                            </Typography>
+                            <Typography variant="body2">{selectedProject.name}</Typography>
+                          </Stack>
+                        </Stack>
+                      </Box>
+                    )}
+                  </>
+                ) : (
+                  <Alert severity="info">
+                    No properties found. Make sure your Google account has access to Search Console properties.
+                  </Alert>
                 )}
 
                 <Stack direction="row" spacing={2} justifyContent="flex-end">
@@ -237,20 +552,22 @@ export function GoogleSearchConsoleConfig() {
                   >
                     Disconnect
                   </Button>
-                  <Button
-                    variant="contained"
-                    onClick={handleSave}
-                    disabled={!selectedProperty || isSaving}
-                    startIcon={
-                      isSaving ? (
-                        <Iconify icon="svg-spinners:3-dots-fade" />
-                      ) : (
-                        <Iconify icon="eva:save-fill" />
-                      )
-                    }
-                  >
-                    {isSaving ? 'Saving...' : 'Save Configuration'}
-                  </Button>
+                  {properties.length > 0 && (
+                    <Button
+                      variant="contained"
+                      onClick={handleSave}
+                      disabled={!selectedProperty || isSaving}
+                      startIcon={
+                        isSaving ? (
+                          <Iconify icon="svg-spinners:3-dots-fade" />
+                        ) : (
+                          <Iconify icon="eva:save-fill" />
+                        )
+                      }
+                    >
+                      {isSaving ? 'Saving...' : 'Save Configuration'}
+                    </Button>
+                  )}
                 </Stack>
               </>
             )}
