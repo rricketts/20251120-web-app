@@ -23,6 +23,7 @@ export type UserProps = {
   status: string;
   isVerified: boolean;
   isActive: boolean;
+  lastLoginAt?: string;
 };
 
 type UserTableRowProps = {
@@ -79,6 +80,12 @@ export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: U
         <TableCell>{row.role}</TableCell>
 
         <TableCell align="center">
+          <Label color={row.isActive ? 'success' : 'error'}>
+            {row.isActive ? 'Active' : 'Inactive'}
+          </Label>
+        </TableCell>
+
+        <TableCell align="center">
           {row.isVerified ? (
             <Iconify width={22} icon="solar:check-circle-bold" sx={{ color: 'success.main' }} />
           ) : (
@@ -86,10 +93,14 @@ export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: U
           )}
         </TableCell>
 
-        <TableCell align="center">
-          <Label color={row.isActive ? 'success' : 'error'}>
-            {row.isActive ? 'Active' : 'Inactive'}
-          </Label>
+        <TableCell>
+          {row.lastLoginAt ? new Date(row.lastLoginAt).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }) : 'Never'}
         </TableCell>
 
         <TableCell>

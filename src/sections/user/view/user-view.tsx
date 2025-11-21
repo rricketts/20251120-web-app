@@ -39,6 +39,7 @@ function convertUserToUserProps(user: User): UserProps {
     role: user.role,
     isVerified: user.is_verified,
     isActive: user.is_active !== undefined ? user.is_active : true,
+    lastLoginAt: user.last_login_at,
     status: user.status,
   };
 }
@@ -205,8 +206,9 @@ export function UserView() {
                   { id: 'name', label: 'Name' },
                   { id: 'email', label: 'Email' },
                   { id: 'role', label: 'Role' },
-                  { id: 'isVerified', label: 'Verified', align: 'center' },
                   { id: 'isActive', label: 'Active', align: 'center' },
+                  { id: 'isVerified', label: 'Verified', align: 'center' },
+                  { id: 'lastLoginAt', label: 'Last Login', align: 'left' },
                   { id: 'status', label: 'Status' },
                   { id: '' },
                 ]}
