@@ -15,6 +15,8 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 
+import { supabase } from 'src/lib/supabase';
+
 type ProjectFormDialogProps = {
   open: boolean;
   project?: {
@@ -24,25 +26,56 @@ type ProjectFormDialogProps = {
     logo_url: string | null;
   } | null;
   onClose: () => void;
-  onSave: (values: { name: string; plan: string }) => Promise<void>;
+  onSave: (values: { name: string; plan: string; managerId: string }) => Promise<void>;
+  currentUserRole?: string;
 };
 
-export function ProjectFormDialog({ open, project, onClose, onSave }: ProjectFormDialogProps) {
+type Manager = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+export function ProjectFormDialog({ open, project, onClose, onSave, currentUserRole }: ProjectFormDialogProps) {
   const [name, setName] = useState('');
   const [plan, setPlan] = useState('Free');
+  const [managerId, setManagerId] = useState('');
+  const [managers, setManagers] = useState<Manager[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const isAdmin = currentUserRole === 'admin';
+
   useEffect(() => {
+    const fetchManagers = async () => {
+      if (isAdmin && open && !project) {
+        try {
+          const { data, error: fetchError } = await supabase
+            .from('users')
+            .select('id, name, email')
+            .eq('role', 'manager')
+            .order('name', { ascending: true });
+
+          if (fetchError) throw fetchError;
+          setManagers(data || []);
+        } catch (err) {
+          console.error('Error fetching managers:', err);
+        }
+      }
+    };
+
     if (project) {
       setName(project.name);
       setPlan(project.plan);
+      setManagerId('');
     } else {
       setName('');
       setPlan('Free');
+      setManagerId('');
     }
     setError('');
-  }, [project, open]);
+    fetchManagers();
+  }, [project, open, isAdmin]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -53,9 +86,14 @@ export function ProjectFormDialog({ open, project, onClose, onSave }: ProjectFor
       return;
     }
 
+    if (isAdmin && !project && !managerId) {
+      setError('Please select a manager');
+      return;
+    }
+
     try {
       setSaving(true);
-      await onSave({ name: name.trim(), plan });
+      await onSave({ name: name.trim(), plan, managerId });
     } catch (err) {
       setError('Failed to save project. Please try again.');
       console.error('Error saving project:', err);
@@ -96,7 +134,24 @@ export function ProjectFormDialog({ open, project, onClose, onSave }: ProjectFor
               </Select>
             </FormControl>
 
-            {error && name.trim() && (
+            {isAdmin && !project && (
+              <FormControl fullWidth disabled={saving}>
+                <InputLabel>Assign to Manager</InputLabel>
+                <Select
+                  value={managerId}
+                  label="Assign to Manager"
+                  onChange={(e) => setManagerId(e.target.value)}
+                >
+                  {managers.map((manager) => (
+                    <MenuItem key={manager.id} value={manager.id}>
+                      {manager.name} ({manager.email})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {error && (
               <Typography variant="body2" color="error">
                 {error}
               </Typography>

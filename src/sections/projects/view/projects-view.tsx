@@ -18,6 +18,7 @@ import Tab from '@mui/material/Tab';
 import { useRouter } from 'src/routes/hooks';
 
 import { supabase } from 'src/lib/supabase';
+import { useAuth } from 'src/contexts/auth-context';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
@@ -37,6 +38,7 @@ type Project = {
 export function ProjectsView() {
   const navigate = useNavigate();
   const router = useRouter();
+  const { userRole } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -117,7 +119,7 @@ export function ProjectsView() {
   );
 
   const handleSaveProject = useCallback(
-    async (values: { name: string; plan: string }) => {
+    async (values: { name: string; plan: string; managerId: string }) => {
       try {
         const {
           data: { user },
@@ -136,13 +138,15 @@ export function ProjectsView() {
 
           if (updateError) throw updateError;
         } else {
+          const ownerId = userRole === 'admin' && values.managerId ? values.managerId : user.id;
+
           const { data: newProject, error: insertError } = await supabase
             .from('projects')
             .insert({
               name: values.name,
               plan: values.plan,
               logo_url: null,
-              owner_id: user.id,
+              owner_id: ownerId,
             })
             .select()
             .single();
@@ -152,7 +156,7 @@ export function ProjectsView() {
           if (newProject) {
             const { error: memberError } = await supabase.from('project_members').insert({
               project_id: newProject.id,
-              user_id: user.id,
+              user_id: ownerId,
               role: 'owner',
             });
 
@@ -167,7 +171,7 @@ export function ProjectsView() {
         throw error;
       }
     },
-    [editingProject, fetchProjects, handleCloseDialog]
+    [editingProject, fetchProjects, handleCloseDialog, userRole]
   );
 
   const getDefaultLogo = (name: string) => {
@@ -279,6 +283,7 @@ export function ProjectsView() {
         project={editingProject}
         onClose={handleCloseDialog}
         onSave={handleSaveProject}
+        currentUserRole={userRole}
       />
     </DashboardContent>
   );
