@@ -71,6 +71,22 @@ export function IntegrationsView() {
       connected: false,
       comingSoon: true,
     },
+    {
+      id: 'google-ads',
+      name: 'Google Ads',
+      description: 'Manage and track your advertising campaigns',
+      icon: 'logos:google-ads',
+      connected: false,
+      comingSoon: true,
+    },
+    {
+      id: 'google-business-profile',
+      name: 'Google Business Profile',
+      description: 'Manage your business presence on Google',
+      icon: 'logos:google-icon',
+      connected: false,
+      comingSoon: true,
+    },
   ]);
 
   const handleToggle = (id: string) => {
