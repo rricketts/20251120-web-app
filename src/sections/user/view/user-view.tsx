@@ -186,7 +186,7 @@ export function UserView() {
           refresh_token: result.refreshToken,
         });
 
-        window.location.href = '/';
+        window.location.reload();
       } else {
         throw new Error('No session tokens received');
       }
