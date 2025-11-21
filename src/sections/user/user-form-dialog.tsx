@@ -47,14 +47,12 @@ const getRolesForUser = (userRole: string) => {
 };
 
 export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUserRole = 'user' }: UserFormDialogProps) {
-  const availableRoles = getRolesForUser(currentUserRole);
-
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     passwordConfirm: '',
-    role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
+    role: 'user',
     isVerified: false,
     status: 'active',
   });
@@ -64,9 +62,12 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const availableRoles = getRolesForUser(currentUserRole);
   const isManagerRole = currentUserRole === 'manager';
 
   useEffect(() => {
+    if (!open) return;
+
     const fetchProjects = async () => {
       try {
         const { data: projectsData, error: projectsError } = await supabase
@@ -99,10 +100,13 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
       }
     };
 
-    if (open && isManagerRole) {
+    if (isManagerRole) {
       fetchProjects();
-      fetchUserProjects();
     }
+    fetchUserProjects();
+
+    const roles = getRolesForUser(currentUserRole);
+    const defaultRole = roles.length > 0 ? roles[roles.length - 1] : 'user';
 
     if (editUser) {
       setFormData({
@@ -120,12 +124,12 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         email: '',
         password: '',
         passwordConfirm: '',
-        role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'user',
+        role: defaultRole,
         isVerified: false,
         status: 'active',
       });
     }
-  }, [editUser, open, availableRoles, isManagerRole]);
+  }, [editUser, open, currentUserRole, isManagerRole]);
 
   const handleChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
