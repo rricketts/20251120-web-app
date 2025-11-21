@@ -23,16 +23,12 @@ type ProjectContextType = {
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProjectState] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProjects = useCallback(async () => {
-    if (authLoading) {
-      return;
-    }
-
     if (!user?.id) {
       setProjects([]);
       setSelectedProjectState(null);
@@ -69,7 +65,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, authLoading]);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchProjects();
