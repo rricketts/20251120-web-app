@@ -60,6 +60,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
   const [availableProjects, setAvailableProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [changePassword, setChangePassword] = useState(false);
 
   const availableRoles = getRolesForUser(currentUserRole);
   const isManagerRole = currentUserRole === 'manager';
@@ -144,12 +145,23 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     }));
   };
 
+  const handleChangePasswordCheckbox = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setChangePassword(event.target.checked);
+    if (!event.target.checked) {
+      setFormData((prev) => ({
+        ...prev,
+        password: '',
+        passwordConfirm: '',
+      }));
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
     setError('');
 
-    if (!editUser) {
+    if (!editUser || (editUser && changePassword)) {
       if (!formData.password) {
         setError('Password is required');
         setLoading(false);
@@ -183,6 +195,36 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
           .eq('id', editUser.id);
 
         if (updateError) throw updateError;
+
+        if (changePassword && formData.password) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            try {
+              const response = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-user-email`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    userId: editUser.id,
+                    updatePassword: true,
+                    newPassword: formData.password,
+                  }),
+                }
+              );
+
+              if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update password');
+              }
+            } catch (err: any) {
+              throw new Error(err.message || 'Failed to update password');
+            }
+          }
+        }
 
         if (formData.isVerified !== editUser.isVerified) {
           const { data: { session } } = await supabase.auth.getSession();
@@ -325,6 +367,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
   const handleClose = () => {
     if (!loading) {
       setError('');
+      setChangePassword(false);
       onClose();
     }
   };
@@ -371,14 +414,26 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               helperText={editUser ? 'Email cannot be changed' : ''}
             />
 
-            {!editUser && (
-              <>
+            {editUser && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={changePassword}
+                    onChange={handleChangePasswordCheckbox}
+                    disabled={loading}
+                  />
+                }
+                label="Change Password"
+              />
+            )}
 
+            {(!editUser || (editUser && changePassword)) && (
+              <>
                 <TextField
                   required
                   fullWidth
                   type="password"
-                  label="Password"
+                  label="New Password"
                   value={formData.password}
                   onChange={handleChange('password')}
                   disabled={loading}
@@ -389,7 +444,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
                   required
                   fullWidth
                   type="password"
-                  label="Confirm Password"
+                  label="Confirm New Password"
                   value={formData.passwordConfirm}
                   onChange={handleChange('passwordConfirm')}
                   disabled={loading}

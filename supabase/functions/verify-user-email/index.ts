@@ -77,7 +77,43 @@ Deno.serve(async (req: Request) => {
     }
 
     const requestBody = await req.json();
-    const { userId, verify, createUser, email, password, name, role, isVerified } = requestBody;
+    const { userId, verify, createUser, email, password, name, role, isVerified, updatePassword, newPassword } = requestBody;
+
+    if (updatePassword) {
+      if (!userId || !newPassword) {
+        return new Response(
+          JSON.stringify({ error: 'Missing userId or newPassword' }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      const { error: updateError } = await supabaseClient.auth.admin.updateUserById(
+        userId,
+        { password: newPassword }
+      );
+
+      if (updateError) {
+        console.error('Error updating password:', updateError);
+        return new Response(
+          JSON.stringify({ error: updateError.message }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
     if (createUser) {
       if (!email || !password || !name || !role) {
