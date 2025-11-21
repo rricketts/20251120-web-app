@@ -15,7 +15,9 @@ export type User = {
   email: string;
   role: string;
   is_verified: boolean;
+  is_active: boolean;
   status: string;
+  last_login_at?: string;
   created_at: string;
   updated_at: string;
 };

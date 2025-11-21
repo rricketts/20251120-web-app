@@ -53,6 +53,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     passwordConfirm: '',
     role: 'viewer',
     isVerified: false,
+    isActive: true,
     status: 'active',
   });
 
@@ -116,6 +117,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         passwordConfirm: '',
         role: editUser.role,
         isVerified: editUser.isVerified,
+        isActive: editUser.isActive !== undefined ? editUser.isActive : true,
         status: editUser.status,
       });
     } else {
@@ -126,6 +128,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         passwordConfirm: '',
         role: defaultRole,
         isVerified: false,
+        isActive: true,
         status: 'active',
       });
     }
@@ -138,10 +141,10 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
     }));
   };
 
-  const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCheckboxChange = (field: 'isVerified' | 'isActive') => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
-      isVerified: event.target.checked,
+      [field]: event.target.checked,
     }));
   };
 
@@ -190,6 +193,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
             name: formData.name,
             role: formData.role,
             is_verified: formData.isVerified,
+            is_active: formData.isActive,
             status: formData.status,
           })
           .eq('id', editUser.id);
@@ -321,6 +325,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               email: formData.email,
               role: formData.role,
               is_verified: formData.isVerified,
+              is_active: formData.isActive,
               status: formData.status,
               created_by: currentUser?.id,
             },
@@ -350,6 +355,7 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
         passwordConfirm: '',
         role: availableRoles.length > 0 ? availableRoles[availableRoles.length - 1] : 'viewer',
         isVerified: false,
+        isActive: true,
         status: 'active',
       });
       setSelectedProjects([]);
@@ -456,11 +462,22 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
               control={
                 <Checkbox
                   checked={formData.isVerified}
-                  onChange={handleCheckboxChange}
+                  onChange={handleCheckboxChange('isVerified')}
                   disabled={loading}
                 />
               }
               label="Verified"
+            />
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={formData.isActive}
+                  onChange={handleCheckboxChange('isActive')}
+                  disabled={loading}
+                />
+              }
+              label="Active"
             />
 
             {isManagerRole && (

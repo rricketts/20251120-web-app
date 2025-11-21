@@ -26,6 +26,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userData, setUserData] = useState<UserData | null>(null);
 
   useEffect(() => {
+    const updateLastLogin = async (userId: string) => {
+      try {
+        await supabase
+          .from('users')
+          .update({ last_login_at: new Date().toISOString() })
+          .eq('id', userId);
+      } catch (error) {
+        console.error('Error updating last login:', error);
+      }
+    };
+
     const initAuth = async () => {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       setSession(currentSession);
@@ -35,6 +46,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await getUserDataByEmail(currentSession.user.email);
         setUserData(data);
         setUserRole(data?.role || 'viewer');
+
+        if (currentSession.user.id) {
+          await updateLastLogin(currentSession.user.id);
+        }
       }
 
       setLoading(false);
@@ -44,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+    } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
 
@@ -52,6 +67,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await getUserDataByEmail(currentSession.user.email);
         setUserData(data);
         setUserRole(data?.role || 'viewer');
+
+        if (event === 'SIGNED_IN' && currentSession.user.id) {
+          await updateLastLogin(currentSession.user.id);
+        }
       } else {
         setUserRole('viewer');
         setUserData(null);

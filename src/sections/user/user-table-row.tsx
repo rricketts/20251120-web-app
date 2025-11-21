@@ -22,6 +22,7 @@ export type UserProps = {
   role: string;
   status: string;
   isVerified: boolean;
+  isActive: boolean;
 };
 
 type UserTableRowProps = {
@@ -83,6 +84,12 @@ export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: U
           ) : (
             '-'
           )}
+        </TableCell>
+
+        <TableCell align="center">
+          <Label color={row.isActive ? 'success' : 'error'}>
+            {row.isActive ? 'Active' : 'Inactive'}
+          </Label>
         </TableCell>
 
         <TableCell>
