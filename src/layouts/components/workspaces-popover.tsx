@@ -54,16 +54,19 @@ export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopover
         }));
 
         setProjects(formattedProjects);
-        if (formattedProjects.length > 0 && !workspace) {
-          setWorkspace(formattedProjects[0]);
-        }
+        setWorkspace((prev) => {
+          if (!prev && formattedProjects.length > 0) {
+            return formattedProjects[0];
+          }
+          return prev;
+        });
       } catch (error) {
         console.error('Error fetching projects:', error);
       }
     };
 
     fetchProjects();
-  }, [workspace]);
+  }, []);
 
   const handleOpenPopover = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     setOpenPopover(event.currentTarget);
