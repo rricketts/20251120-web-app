@@ -146,6 +146,21 @@ export function ProfileView() {
             <Stack spacing={2} sx={{ mt: 2 }}>
               <Box>
                 <Typography variant="body2" color="text.secondary">
+                  Account Type
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    textTransform: 'capitalize',
+                    fontWeight: 600,
+                    color: 'primary.main'
+                  }}
+                >
+                  {userData?.role || 'viewer'}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary">
                   Account ID
                 </Typography>
                 <Typography variant="body1">{user?.id}</Typography>
