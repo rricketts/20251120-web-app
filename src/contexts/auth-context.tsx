@@ -1,9 +1,9 @@
 import type { User, Session } from '@supabase/supabase-js';
 
-import { useState, useEffect, useContext, createContext, useMemo } from 'react';
+import { useMemo, useState, useEffect, useContext, createContext } from 'react';
 
 import { supabase } from 'src/lib/supabase';
-import { getUserDataByEmail, type UserData } from 'src/lib/user-role';
+import { type UserData, getUserDataByEmail } from 'src/lib/user-role';
 
 type AuthContextType = {
   user: User | null;

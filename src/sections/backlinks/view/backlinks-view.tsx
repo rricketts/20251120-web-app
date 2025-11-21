@@ -10,20 +10,21 @@ import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import { DashboardContent } from 'src/layouts/dashboard';
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/contexts/auth-context';
+import { DashboardContent } from 'src/layouts/dashboard';
 import { useProject } from 'src/contexts/project-context';
+
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 
+import { TableNoData } from '../table-no-data';
+import { TableEmptyRows } from '../table-empty-rows';
+import { BacklinksTableRow } from '../backlinks-table-row';
 import { BacklinkFormDialog } from '../backlink-form-dialog';
 import { BacklinksTableHead } from '../backlinks-table-head';
-import { BacklinksTableRow } from '../backlinks-table-row';
-import { BacklinksTableToolbar } from '../backlinks-table-toolbar';
 import { emptyRows, applyFilter, getComparator } from '../utils';
-import { TableEmptyRows } from '../table-empty-rows';
-import { TableNoData } from '../table-no-data';
+import { BacklinksTableToolbar } from '../backlinks-table-toolbar';
 
 type Backlink = {
   id: string;
@@ -38,7 +39,7 @@ type Backlink = {
 };
 
 export function BacklinksView() {
-  const { user } = useAuth();
+  useAuth();
   const { selectedProject } = useProject();
   const [backlinks, setBacklinks] = useState<Backlink[]>([]);
   const [loading, setLoading] = useState(true);

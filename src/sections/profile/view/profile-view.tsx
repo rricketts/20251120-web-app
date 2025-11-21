@@ -9,8 +9,9 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
 
-import { DashboardContent } from 'src/layouts/dashboard';
 import { useAuth } from 'src/contexts/auth-context';
+import { DashboardContent } from 'src/layouts/dashboard';
+
 import { Iconify } from 'src/components/iconify';
 
 export function ProfileView() {

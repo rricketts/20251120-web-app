@@ -10,20 +10,21 @@ import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import { DashboardContent } from 'src/layouts/dashboard';
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/contexts/auth-context';
+import { DashboardContent } from 'src/layouts/dashboard';
 import { useProject } from 'src/contexts/project-context';
+
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 
+import { TableNoData } from '../table-no-data';
+import { TableEmptyRows } from '../table-empty-rows';
+import { CompetitorsTableRow } from '../competitors-table-row';
 import { CompetitorFormDialog } from '../competitor-form-dialog';
 import { CompetitorsTableHead } from '../competitors-table-head';
-import { CompetitorsTableRow } from '../competitors-table-row';
-import { CompetitorsTableToolbar } from '../competitors-table-toolbar';
 import { emptyRows, applyFilter, getComparator } from '../utils';
-import { TableEmptyRows } from '../table-empty-rows';
-import { TableNoData } from '../table-no-data';
+import { CompetitorsTableToolbar } from '../competitors-table-toolbar';
 
 type Competitor = {
   id: string;
@@ -39,7 +40,7 @@ type Competitor = {
 };
 
 export function CompetitorsView() {
-  const { user } = useAuth();
+  useAuth();
   const { selectedProject } = useProject();
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [loading, setLoading] = useState(true);

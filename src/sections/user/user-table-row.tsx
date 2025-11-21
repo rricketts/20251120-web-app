@@ -46,12 +46,12 @@ export function UserTableRow({ row, selected, onSelectRow, onEdit, onDelete }: U
   const handleEdit = useCallback(() => {
     handleClosePopover();
     onEdit?.(row);
-  }, [onEdit, row]);
+  }, [onEdit, row, handleClosePopover]);
 
   const handleDelete = useCallback(() => {
     handleClosePopover();
     onDelete?.(row.id);
-  }, [onDelete, row.id]);
+  }, [onDelete, row.id, handleClosePopover]);
 
   return (
     <>

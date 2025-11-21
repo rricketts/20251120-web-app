@@ -10,20 +10,21 @@ import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import { DashboardContent } from 'src/layouts/dashboard';
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/contexts/auth-context';
+import { DashboardContent } from 'src/layouts/dashboard';
 import { useProject } from 'src/contexts/project-context';
+
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 
+import { TableNoData } from '../table-no-data';
+import { TableEmptyRows } from '../table-empty-rows';
+import { KeywordsTableRow } from '../keywords-table-row';
 import { KeywordFormDialog } from '../keyword-form-dialog';
 import { KeywordsTableHead } from '../keywords-table-head';
-import { KeywordsTableRow } from '../keywords-table-row';
 import { KeywordsTableToolbar } from '../keywords-table-toolbar';
 import { emptyRows, applyFilter, getComparator } from '../utils';
-import { TableEmptyRows } from '../table-empty-rows';
-import { TableNoData } from '../table-no-data';
 
 type Keyword = {
   id: string;
@@ -37,7 +38,7 @@ type Keyword = {
 };
 
 export function KeywordsView() {
-  const { user } = useAuth();
+  useAuth();
   const { selectedProject } = useProject();
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [loading, setLoading] = useState(true);

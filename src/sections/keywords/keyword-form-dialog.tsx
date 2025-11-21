@@ -1,4 +1,3 @@
-import type { Dispatch, SetStateAction } from 'react';
 
 import { useState } from 'react';
 

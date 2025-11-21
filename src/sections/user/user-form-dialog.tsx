@@ -1,23 +1,22 @@
 import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import TextField from '@mui/material/TextField';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import FormControlLabel from '@mui/material/FormControlLabel';
+import Select from '@mui/material/Select';
 import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
+import TextField from '@mui/material/TextField';
 import InputLabel from '@mui/material/InputLabel';
-import Select from '@mui/material/Select';
-import Chip from '@mui/material/Chip';
+import DialogTitle from '@mui/material/DialogTitle';
+import FormControl from '@mui/material/FormControl';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
 import OutlinedInput from '@mui/material/OutlinedInput';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { supabase } from 'src/lib/supabase';
-import { useAuth } from 'src/contexts/auth-context';
 
 import type { UserProps } from './user-table-row';
 
@@ -208,8 +207,8 @@ export function UserFormDialog({ open, onClose, onSuccess, editUser, currentUser
                 const errorData = await response.json();
                 console.error('Failed to update email verification:', errorData);
               }
-            } catch (error) {
-              console.error('Failed to call verify-user-email function:', error);
+            } catch (err) {
+              console.error('Failed to call verify-user-email function:', err);
             }
           }
         }

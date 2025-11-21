@@ -5,12 +5,13 @@ import { varAlpha } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
 import Popover from '@mui/material/Popover';
+import Divider from '@mui/material/Divider';
 import MenuList from '@mui/material/MenuList';
 import ButtonBase from '@mui/material/ButtonBase';
 import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
-import Divider from '@mui/material/Divider';
 
 import { useRouter } from 'src/routes/hooks';
+
 import { useProject } from 'src/contexts/project-context';
 
 import { Label } from 'src/components/label';

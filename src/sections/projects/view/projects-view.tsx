@@ -1,21 +1,14 @@
-import type { SelectChangeEvent } from '@mui/material/Select';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
-import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-
-import { useRouter } from 'src/routes/hooks';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/contexts/auth-context';
@@ -36,8 +29,6 @@ type Project = {
 };
 
 export function ProjectsView() {
-  const navigate = useNavigate();
-  const router = useRouter();
   const { userRole } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);

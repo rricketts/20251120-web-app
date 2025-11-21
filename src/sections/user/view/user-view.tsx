@@ -1,17 +1,16 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import type { User } from 'src/lib/supabase';
+
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
+import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import TableBody from '@mui/material/TableBody';
 import Typography from '@mui/material/Typography';
 import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
-import Stack from '@mui/material/Stack';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
 
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/contexts/auth-context';
@@ -24,12 +23,11 @@ import { TableNoData } from '../table-no-data';
 import { UserTableRow } from '../user-table-row';
 import { UserTableHead } from '../user-table-head';
 import { TableEmptyRows } from '../table-empty-rows';
-import { UserTableToolbar } from '../user-table-toolbar';
 import { UserFormDialog } from '../user-form-dialog';
+import { UserTableToolbar } from '../user-table-toolbar';
 import { emptyRows, applyFilter, getComparator } from '../utils';
 
 import type { UserProps } from '../user-table-row';
-import type { User } from 'src/lib/supabase';
 
 // ----------------------------------------------------------------------
 
@@ -45,22 +43,15 @@ function convertUserToUserProps(user: User): UserProps {
 }
 
 export function UserView() {
-  const navigate = useNavigate();
   const table = useTable();
   const { userRole } = useAuth();
 
-  const [currentTab, setCurrentTab] = useState('users');
   const [filterName, setFilterName] = useState('');
   const [users, setUsers] = useState<UserProps[]>([]);
-  const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editUser, setEditUser] = useState<UserProps | null>(null);
 
   const canManageUsers = userRole === 'admin' || userRole === 'manager';
-
-  const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
-    setCurrentTab(newValue);
-  };
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);

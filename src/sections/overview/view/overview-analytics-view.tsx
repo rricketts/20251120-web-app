@@ -1,10 +1,10 @@
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 
-import { DashboardContent } from 'src/layouts/dashboard';
-import { _posts, _tasks, _traffic, _timeline } from 'src/_mock';
 import { useAuth } from 'src/contexts/auth-context';
+import { DashboardContent } from 'src/layouts/dashboard';
 import { useProject } from 'src/contexts/project-context';
+import { _posts, _tasks, _traffic, _timeline } from 'src/_mock';
 
 import { AnalyticsNews } from '../analytics-news';
 import { AnalyticsTasks } from '../analytics-tasks';
@@ -12,15 +12,15 @@ import { AnalyticsCurrentVisits } from '../analytics-current-visits';
 import { AnalyticsOrderTimeline } from '../analytics-order-timeline';
 import { AnalyticsWebsiteVisits } from '../analytics-website-visits';
 import { AnalyticsWidgetSummary } from '../analytics-widget-summary';
+import { AnalyticsDomainMetrics } from '../analytics-domain-metrics';
 import { AnalyticsTrafficBySite } from '../analytics-traffic-by-site';
 import { AnalyticsCurrentSubject } from '../analytics-current-subject';
 import { AnalyticsConversionRates } from '../analytics-conversion-rates';
-import { AnalyticsDomainMetrics } from '../analytics-domain-metrics';
 
 // ----------------------------------------------------------------------
 
 export function OverviewAnalyticsView() {
-  const { userData } = useAuth();
+  useAuth();
   const { selectedProject } = useProject();
 
   return (
